@@ -1,7 +1,11 @@
 package twc;
 
+import neural.DeepLayer;
 import trainingTasks.TrainingProcessor;
 import vectorTasks.VectorsProcessor;
+
+import java.util.ArrayList;
+import java.util.List;
 
 //TIP To <b>Run</b> code, press <shortcut actionId="Run"/> or
 // click the <icon src="AllIcons.Actions.Execute"/> icon in the gutter.
@@ -58,7 +62,7 @@ public class Main {
         }
     }
 
-    public static void main(String[] args) {
+    public static void main_02(String[] args) {
         // get scaling factors
         TrainingProcessor tp = new TrainingProcessor();
         String[] filters = {"2019","2020","2021","2022","2023","2024","2025"};
@@ -75,6 +79,25 @@ public class Main {
             String kpiFile = "c:/_db/"+tkr+"_kpis.txt";
 
             tp.loadDataSet( kpiFile, filters, params);
+            tp.normalizeInputs("closeMA200xo",4.74292099,14.26543601);
+            tp.normalizeInputs("closeMA50xo",1.27341681,6.92262897);
+            tp.normalizeInputs("cmf",0.03265432,0.20682017);
+            tp.normalizeInputs("macd",0.52668275,3.23695993);
+            tp.normalizeInputs("macdSignal",0.51746509,3.04182862);
+            tp.normalizeInputs("atrDaily",3.88681522,6.09221636);
+            tp.normalizeInputs("atr",3.88247562,5.75621837);
+            tp.normalizeInputs("atrPct",2.3035259,3.42048145);
+            tp.normalizeInputs("mfi",52.80884259,76.37326945);
+            tp.normalizeInputs("pvo",-0.69947629,8.27405592);
+            tp.normalizeInputs("obv",3.74872051,24.64325854);
+            tp.normalizeInputs("willR",44.20454974,69.46943854);
+            tp.normalizeInputs("kcLPct",-4.90150646,7.7722257);
+            tp.normalizeInputs("kcMPct",0.30185095,1.48703185);
+            tp.normalizeInputs("kcUPct",4.29372565,7.92920582);
+            tp.normalizeInputs("macdv",19.9256551,82.23265115);
+            tp.normalizeInputs("macdvSignal",19.73303331,77.78983534);
+            tp.normalizeInputs("mPhase",49.90514991,78.88413791);
+            tp.normalizeInputs("mDir",0.52910053,100.03080758);
             /*
 dates,open,high,low,close,volume,dividend,split,adjOpen,adjHigh,adjLow,adjClose,
 closeMA200,closeMA200xo,closeMA50,closeMA50xo,
@@ -85,28 +108,7 @@ macdv,macdvSignal,mPhase,mDir,
 pf8,zigZag,pf15,buySignal8,sellSignal8,buySignal15,sellSignal15
 
 
-closeMA200xo		4.74292099	14.26543601
-closeMA50xo		1.27341681	6.92262897
-cmf		0.03265432	0.20682017
-macd		0.52668275	3.23695993
-macdSignal		0.51746509	3.04182862
-atrDaily		3.88681522	6.09221636
-atr		3.88247562	5.75621837
-atrPct		2.3035259	3.42048145
-mfi		52.80884259	76.37326945
-pvo		-0.69947629	8.27405592
-obv		3.74872051	24.64325854
-willR		44.20454974	69.46943854
-kcLwr		164.12504795	237.48339324
-kcMid		171.88999921	248.59394312
-KcUpr		179.65495046	259.74081682
-kcLPct		-4.90150646	7.7722257
-kcMPct		0.30185095	1.48703185
-kcUPct		4.29372565	7.92920582
-macdv		19.9256551	82.23265115
-macdvSignal		19.73303331	77.78983534
-mPhase		49.90514991	78.88413791
-mDir		0.52910053	100.03080758
+
 
              */
             System.out.println(kpiFile);
@@ -194,4 +196,55 @@ mDir      , stdev, 100.03080758, 100.0308, 100.0308, 100.0308, 100.0308, 100.030
 
 
  */
+
+    public static void main(String[] args) {
+        // get scaling factors
+        TrainingProcessor tp = new TrainingProcessor();
+        String[] filters = {"2021", "2022", "2023"};
+        String[] params = {"cmf", "macd", "macdSignal", "obv", "macdv", "macdvSignal", "pvo", "obv", "willR",
+                "kcLPct", "kcMPct", "kcUPct", "macdv", "macdvSignal", "mPhase", "mDir"};
+        for (String tkr : dji30) {
+            String kpiFile = "c:/_db/" + tkr + "_kpis.txt";
+            String outFile1 = "c:/_arcturus/neural/" + tkr + "_out1.txt";
+            String outFile2 = "c:/_arcturus/neural/" + tkr + "_out2.txt";
+            String outFile3 = "c:/_arcturus/neural/" + tkr + "_out3.txt";
+            String tsFile = "c:/_arcturus/neural/" + tkr + "_ts_2021.txt";
+
+            tp.loadDataSet(kpiFile, filters, params);
+            tp.normalizeInputs("closeMA200xo",4.74292099,14.26543601);
+            tp.normalizeInputs("closeMA50xo",1.27341681,6.92262897);
+            tp.normalizeInputs("cmf",0.03265432,0.20682017);
+            tp.normalizeInputs("macd",0.52668275,3.23695993);
+            tp.normalizeInputs("macdSignal",0.51746509,3.04182862);
+            tp.normalizeInputs("atrDaily",3.88681522,6.09221636);
+            tp.normalizeInputs("atr",3.88247562,5.75621837);
+            tp.normalizeInputs("atrPct",2.3035259,3.42048145);
+            tp.normalizeInputs("mfi",52.80884259,76.37326945);
+            tp.normalizeInputs("pvo",-0.69947629,8.27405592);
+            tp.normalizeInputs("obv",3.74872051,24.64325854);
+            tp.normalizeInputs("willR",44.20454974,69.46943854);
+            tp.normalizeInputs("kcLPct",-4.90150646,7.7722257);
+            tp.normalizeInputs("kcMPct",0.30185095,1.48703185);
+            tp.normalizeInputs("kcUPct",4.29372565,7.92920582);
+            tp.normalizeInputs("macdv",19.9256551,82.23265115);
+            tp.normalizeInputs("macdvSignal",19.73303331,77.78983534);
+            tp.normalizeInputs("mPhase",49.90514991,78.88413791);
+            tp.normalizeInputs("mDir",0.52910053,100.03080758);
+
+            tp.writeTrainingSet(tsFile);
+            //deeplayer network
+
+            int inputSize = tp.inputVector[0].length;
+            double learningRate = 0.02;
+            int iterationsNum = 100000;
+            DeepLayer nn1 = new DeepLayer(inputSize, 1024, 1);
+            TrainingProcessor.train(nn1, tp.buySignal, tp.inputVector, learningRate, iterationsNum, outFile1);
+            DeepLayer nn2 = new DeepLayer(inputSize, 1024, 1);
+            TrainingProcessor.train(nn2, tp.sellSignal, tp.inputVector, learningRate, iterationsNum, outFile2);
+
+            tp.writePredictions( nn1, tp.buySignal, nn2, tp.sellSignal, outFile3 );
+            break;
+        }
+    }
+
 }
