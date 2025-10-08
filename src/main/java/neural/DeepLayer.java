@@ -1,5 +1,7 @@
 package neural;
 
+import environment.Utilities;
+
 import java.io.BufferedReader;
 import java.io.FileReader;
 import java.io.IOException;
@@ -296,5 +298,37 @@ public class DeepLayer {
 
     }
 
- }
+    public void writeTopology(String source, String netFile) {
+        StringBuilder config = new StringBuilder();
+        String sizes = String.format("%d", layerSizes[0]);
+        for (int l = 0; l < weights.length; l++) {
+            sizes += String.format(", %d", layerSizes[l+1]);
+        }
+        config.append( String.format("config: {\n source: '%s',\n layers: %d,\n sizes: [ %s ] \n}\n", source, weights.length, sizes) );
+
+        for (int l = 0; l < weights.length; l++) {
+            config.append( String.format("\n##LAYER=%d##\n", l) );
+            config.append( "##BIAS##" );
+            // Update Biases (l+1 layer)
+            for (int j = 0; j < layerSizes[l + 1]; j++) {
+                // Change in bias: -eta * delta^(l+1)_j
+                config.append( String.format(", %.12f",biases[l][j] ) );
+            }
+
+            // Update Weights (l to l+1 connection)
+            config.append( "\n##WEIGHTS##" );
+            for (int j = 0; j < layerSizes[l + 1]; j++) { // Current neuron index (l+1)
+                config.append( String.format("\n## %d ##",j ) );
+                for (int i = 0; i < layerSizes[l]; i++) {  // Previous neuron index (l)
+                    // Change in weight: -eta * delta^(l+1)_j * a^l_i
+                    config.append( String.format(", %.12f",weights[l][j][i]) );
+                }
+            }
+            config.append( "\n##END-LAYER##\n" );
+
+        }
+        config.append( "\n##END-NETWORK##\n" );
+        Utilities.writeFile(netFile,config);
+    }
+}
 

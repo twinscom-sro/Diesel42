@@ -119,6 +119,25 @@ public class TrainingProcessor {
 
             if( k%50==0) System.out.println( k + "["+dates[k]+"]-> " + Arrays.toString(inputVector[k]) );
         }
+        normalizeInputs("closeMA200xo",4.74292099,14.26543601);
+        normalizeInputs("closeMA50xo",1.27341681,6.92262897);
+        normalizeInputs("cmf",0.03265432,0.20682017);
+        normalizeInputs("macd",0.52668275,3.23695993);
+        normalizeInputs("macdSignal",0.51746509,3.04182862);
+        normalizeInputs("atrDaily",3.88681522,6.09221636);
+        normalizeInputs("atr",3.88247562,5.75621837);
+        normalizeInputs("atrPct",2.3035259,3.42048145);
+        normalizeInputs("mfi",52.80884259,76.37326945);
+        normalizeInputs("pvo",-0.69947629,8.27405592);
+        normalizeInputs("obv",3.74872051,24.64325854);
+        normalizeInputs("willR",44.20454974,69.46943854);
+        normalizeInputs("kcLPct",-4.90150646,7.7722257);
+        normalizeInputs("kcMPct",0.30185095,1.48703185);
+        normalizeInputs("kcUPct",4.29372565,7.92920582);
+        normalizeInputs("macdv",19.9256551,82.23265115);
+        normalizeInputs("macdvSignal",19.73303331,77.78983534);
+        normalizeInputs("mPhase",49.90514991,78.88413791);
+        normalizeInputs("mDir",0.52910053,100.03080758);
     }
 
 

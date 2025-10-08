@@ -209,41 +209,28 @@ mDir      , stdev, 100.03080758, 100.0308, 100.0308, 100.0308, 100.0308, 100.030
             String outFile2 = "c:/_arcturus/neural/" + tkr + "_out2.txt";
             String outFile3 = "c:/_arcturus/neural/" + tkr + "_out3.txt";
             String tsFile = "c:/_arcturus/neural/" + tkr + "_ts_2021.txt";
+            String netFile1 = "c:/_arcturus/neural/" + tkr + "_network1.txt";
+            String netFile2 = "c:/_arcturus/neural/" + tkr + "_network2.txt";
 
             tp.loadDataSet(kpiFile, filters, params);
-            tp.normalizeInputs("closeMA200xo",4.74292099,14.26543601);
-            tp.normalizeInputs("closeMA50xo",1.27341681,6.92262897);
-            tp.normalizeInputs("cmf",0.03265432,0.20682017);
-            tp.normalizeInputs("macd",0.52668275,3.23695993);
-            tp.normalizeInputs("macdSignal",0.51746509,3.04182862);
-            tp.normalizeInputs("atrDaily",3.88681522,6.09221636);
-            tp.normalizeInputs("atr",3.88247562,5.75621837);
-            tp.normalizeInputs("atrPct",2.3035259,3.42048145);
-            tp.normalizeInputs("mfi",52.80884259,76.37326945);
-            tp.normalizeInputs("pvo",-0.69947629,8.27405592);
-            tp.normalizeInputs("obv",3.74872051,24.64325854);
-            tp.normalizeInputs("willR",44.20454974,69.46943854);
-            tp.normalizeInputs("kcLPct",-4.90150646,7.7722257);
-            tp.normalizeInputs("kcMPct",0.30185095,1.48703185);
-            tp.normalizeInputs("kcUPct",4.29372565,7.92920582);
-            tp.normalizeInputs("macdv",19.9256551,82.23265115);
-            tp.normalizeInputs("macdvSignal",19.73303331,77.78983534);
-            tp.normalizeInputs("mPhase",49.90514991,78.88413791);
-            tp.normalizeInputs("mDir",0.52910053,100.03080758);
-
             tp.writeTrainingSet(tsFile);
-            //deeplayer network
 
+            //deeplayer network
             int inputSize = tp.inputVector[0].length;
             double learningRate = 0.02;
-            int iterationsNum = 100000;
-            DeepLayer nn1 = new DeepLayer(inputSize, 1024, 1);
+            int iterationsNum = 100;
+            DeepLayer nn1 = new DeepLayer(inputSize, 1024, 64, 8, 1);
             TrainingProcessor.train(nn1, tp.buySignal, tp.inputVector, learningRate, iterationsNum, outFile1);
-            DeepLayer nn2 = new DeepLayer(inputSize, 1024, 1);
+            nn1.writeTopology("buySignal, "+kpiFile,netFile1);
+            DeepLayer nn2 = new DeepLayer(inputSize, 1024, 64, 8, 1);
             TrainingProcessor.train(nn2, tp.sellSignal, tp.inputVector, learningRate, iterationsNum, outFile2);
+            nn2.writeTopology("sellSignal, "+kpiFile,netFile2);
 
-            tp.writePredictions( nn1, tp.buySignal, nn2, tp.sellSignal, outFile3 );
-            break;
+            String[] filtersPred = {"2024", "2025"};
+            TrainingProcessor tp2 = new TrainingProcessor();
+            tp2.loadDataSet(kpiFile, filtersPred, params);
+            tp2.writePredictions( nn1, tp2.buySignal, nn2, tp2.sellSignal, outFile3 );
+            break; //- debug only
         }
     }
 
