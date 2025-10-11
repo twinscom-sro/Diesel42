@@ -1,5 +1,6 @@
 package optimizationTasks;
 
+import environment.Utilities;
 import neural.DeepLayer;
 import org.bson.Document;
 import predictorTasks.BacktestingProcessor;
@@ -9,7 +10,8 @@ import java.util.Arrays;
 import java.util.List;
 
 public class ModelMixer {
-    char[][] signals;
+    public char[][] signals;
+    char[] signalPattern;
     int totalDays;
     int numModels;
     public char[] includeVector;
@@ -21,16 +23,21 @@ public class ModelMixer {
     public int buyThreshold;
     public int sellThreshold;
     String[] modelFile;
+    String[] modelName;
 
     public ModelMixer(int columns, int tDays) {
         numModels = columns;
         totalDays = tDays;
         signals = new char[numModels+2][totalDays];
+        signalPattern = new char[totalDays];
         includeVector = new char[numModels];
         modelFile = new String[numModels];
+        modelName = new String[numModels];
+        modelName[0] = "BUY[Act]";
+        modelName[1] = "SELL[Act]";
     }
 
-    public void loadPredictions(BacktestingProcessor bp, int pos, String netFile, int neurons ) {
+    public void loadPredictions(BacktestingProcessor bp, int pos, String _name, String netFile, int neurons ) {
         DeepLayer nn = new DeepLayer(bp.stockData.inputSize, neurons, 1);
         nn.readTopology(netFile);
         for (int d = 0; d < totalDays; d++) {
@@ -38,6 +45,7 @@ public class ModelMixer {
             signals[pos+2][d] = y[0]>0.8 ? '1' : '0';
         }
         modelFile[pos]=netFile;
+        modelName[pos]=_name;
     }
 
     public void writeFinalPredictions(BacktestingProcessor bp, StringBuilder sb) {
@@ -92,7 +100,7 @@ public class ModelMixer {
         }
     }
 
-    private void recalculateSignals(char[] _includeVector, int buyThreshold1, int sellThreshold1) {
+    public void recalculateSignals(char[] _includeVector, int buyThreshold1, int sellThreshold1) {
         if( buyThreshold1<1 ) buyThreshold1=1;
         if( sellThreshold1<1 ) sellThreshold1=1;
         for( int d=0; d<totalDays; d++ ){
@@ -106,6 +114,61 @@ public class ModelMixer {
             signals[1][d] = ( sumSell>=sellThreshold1 ) ? 'S' : '-';
         }
     }
+
+    public void recalculateSignals() {
+// no include vector given, just calculate for everything
+
+        int maxBuySignals=0;
+        int maxSellSignals=0;
+        for( int d=0; d<totalDays; d++ ){
+            int sumBuy=0;
+            int sumSell=0;
+            for( int i = 0; i<numModels; i++ ){
+                if( signals[i+2][d]=='1' && i<numModels/2 ) sumBuy++;
+                if( signals[i+2][d]=='1' && i>=numModels/2 ) sumSell++;
+            }
+            if( sumBuy>maxBuySignals ) maxBuySignals=sumBuy;
+            if( sumSell>maxSellSignals) maxSellSignals=sumSell;
+        }
+
+        buyThreshold=maxBuySignals*3/4;
+        sellThreshold=maxSellSignals*3/4;
+        for( int d=0; d<totalDays; d++ ){
+            int sumBuy=0;
+            int sumSell=0;
+            for( int i = 0; i<numModels; i++ ){
+                if( signals[i+2][d]=='1' && i<numModels/2 ) sumBuy++;
+                if( signals[i+2][d]=='1' && i>=numModels/2 ) sumSell++;
+            }
+            signals[0][d] = ( sumBuy>=buyThreshold ) ? 'B' : '-';
+            signals[1][d] = ( sumSell>=sellThreshold ) ? 'S' : '-';
+        }
+
+    }
+
+    public String updateSignalPattern(){
+        for (int d = 0; d < totalDays; d++) {
+            int sumBuy=0;
+            int sumSell=0;
+            for( int i = 0; i<numModels; i++ ){
+                if( signals[i+2][d]=='1' && i<numModels/2 ) sumBuy++;
+                if( signals[i+2][d]=='1' && i>=numModels/2 ) sumSell++;
+            }
+
+            char flag='-';
+            if( sumBuy > 0 ) flag='b';
+            if( sumSell > 0 ) flag='s';
+            if( sumBuy > 0 && sumSell > 0 ) flag='x';
+
+            if( signals[0][d]=='B' ) flag='B';
+            if( signals[1][d]=='S' ) flag='S';
+            if( signals[0][d]=='B' && signals[1][d]=='S' ) flag='X';
+
+            signalPattern[d] = flag;
+        }
+        return new String(signalPattern);
+    }
+
 
     public boolean continueOptimization() {
         return optimizationFlag;
@@ -245,6 +308,33 @@ public class ModelMixer {
         Document result = bp.backtesting(signals[0], signals[1]);
         //double totalGain = result.getDouble("totalGain");
         return result;
+    }
+
+    public void writeForecastDetailMatrix(BacktestingProcessor bp, String resultsFile) {
+        StringBuilder results = new StringBuilder();
+        StringBuilder sb3 = new StringBuilder();
+        StringBuilder sb4 = new StringBuilder();
+        for( int i=0; i<numModels; i++ ) {
+            if( i<numModels/2 ) sb3.append( String.format(",%s",modelName[i]) );
+            if( i>=numModels/2 ) sb4.append( String.format(",%s",modelName[i]) );
+        }
+        results.append( String.format("DATES,PRICE,ZIGZAG,buy[Exp],sell[Exp],SIGNAL,buy[Act],sell[Act]%s%s",sb3.toString(),sb4.toString()) );
+        for (int d = 0; d < totalDays; d++) {
+            StringBuilder sb1 = new StringBuilder();
+            StringBuilder sb2 = new StringBuilder();
+            for( int i=0; i<numModels/2; i++ ) {
+                sb1.append(",").append( signals[i+2][d] );
+            }
+            for( int i=numModels/2; i<numModels; i++ ) {
+                sb2.append(",").append( signals[i+2][d] );
+            }
+            results.append( String.format("\n%10s,%.2f,%.2f,%.1f,%.1f,",
+                    bp.stockData.dates[d], bp.stockData.price[d], bp.stockData.zigZag[d], bp.stockData.buySignal[d], bp.stockData.sellSignal[d] ) );
+            results.append(signalPattern[d]).append(",");
+            results.append(signals[0][d]=='B'?1:0).append(",").append(signals[1][d]=='S'?1:0);
+            results.append( sb1.toString() ).append(sb2.toString() );
+        }
+        Utilities.writeFile(resultsFile, results);
     }
 
 

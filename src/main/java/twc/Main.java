@@ -46,10 +46,10 @@ public class Main {
             "2016,2017,2018,2019,2022,2023",
             "cmf,obv,willR,atrPct,kcMPct,kcUPct,macdv,macdvSignal", "3", "100000"};
     static final String[] option3 = { "3", "c:/_db/kpis", "c:/_db/nets", "c:/_arcturus/2025-10-10",
-            "WMT,GS,MSFT,CAT,HD,UNH,V,SHW,AXP,JPM,MCD,AMGN,IBM,TRV,AAPL,CRM,BA,AMZN,HON,JNJ,NVDA,MMM,CVX,PG,DIS,MRK,CSCO,NKE,KO,VZ",
+            "CAT",//WMT,GS,MSFT,CAT,HD,UNH,V,SHW,AXP,JPM,MCD,AMGN,IBM,TRV,AAPL,CRM,BA,AMZN,HON,JNJ,NVDA,MMM,CVX,PG,DIS,MRK,CSCO,NKE,KO,VZ",
             "WMT,GS,MSFT,CAT,HD,MCD,CRM,BA,JNJ,PG,DIS,MRK,NKE,KO,VZ",
             "2023,2024,2025",
-            "cmf,obv,willR,atrPct,kcMPct,kcUPct,macdv,macdvSignal", "3"};
+            "cmf,obv,willR,atrPct,kcMPct,kcUPct,macdv,macdvSignal", "3", "1024"};
     static final String[] option4 = { "4", "c:/_db/kpis", "c:/_db/nets", "c:/_arcturus/2025-10-10",
             "CAT",
             "WMT,GS,MSFT,CAT,HD,MCD,CRM,BA,JNJ,PG,DIS,MRK,NKE,KO,VZ",
@@ -69,7 +69,7 @@ java -jar Diesel42.2v.jar 2 ./kpis1011 ./nets1011a ./out1011a "WMT,GS,MSFT,CAT,H
     public static void main(String[] args) {
 
         //debugging:
-       //args = option4;
+       args = option3;
 
         if( args.length < 5 ) {
             System.out.println(MENU);
@@ -426,19 +426,41 @@ mDir      , stdev, 100.03080758, 100.0308, 100.0308, 100.0308, 100.0308, 100.030
         //String[] params =  {"cmf", "obv", "willR","kcLPct", "kcMPct", "kcUPct", "macdv", "macdvSignal"};
         //String[] params =  {"cmf", "obv", "willR","kcMPct", "kcUPct", "macdv", "macdvSignal"};
         //String[] filtersPred = {"2022","2023","2024", "2025"};
-        TrainingProcessor tp = new TrainingProcessor();
+       //old code:
+        // TrainingProcessor tp = new TrainingProcessor();
         String kpiFile = DB + tkrSignal + "_kpis.txt";
         String outFile = OUT+String.format("%s_backtesting.txt",tkrSignal);
-        tp.loadDataSet(kpiFile, filters, params, multiplier);
-        int totalDays = tp.samples;
-        int inputSize = tp.inputVector[0].length;
+        String resultsFile = OUT+String.format("%s_forecast.txt",tkrSignal);
+        //tp.loadDataSet(kpiFile, filters, params, multiplier);
+
+        BacktestingProcessor bp = new BacktestingProcessor( tkrSignal, String.format("simple backtest for %s",tkrSignal) );
+        bp.loadDataSet(kpiFile, filters, params, multiplier);
+        int totalDays = bp.stockData.samples;
+        //int inputSize = bp.stockData.inputVector[0].length;
         //System.out.println("Input size="+inputSize);
 
+        StringBuilder sb = new StringBuilder();
+
+        ModelMixer mx = new ModelMixer(2*models.length, totalDays);
+        for (int i = 0; i < models.length; i++) {
+            String netFile1 = NET + models[i] + "_network1.txt";
+            String netFile2 = NET + models[i] + "_network2.txt";
+            mx.loadPredictions( bp, i, String.format("buy[%s]",models[i]), netFile1, neurons);
+            mx.loadPredictions(bp,models.length + i, String.format("sell[%s]",models[i]), netFile2, neurons);
+        }
+        mx.recalculateSignals();
+        mx.updateSignalPattern();
+        mx.writeForecastDetailMatrix(bp,resultsFile);
+
+        Document doc=bp.backtesting( mx.signals[0], mx.signals[1] );
+        sb.append( doc.toJson() );
+        System.out.print( doc.toJson() );
+        Utilities.writeFile(outFile,sb);
+    }
+/*
         double[][] buySignal = new double[models.length+1][totalDays];
         double[][] sellSignal = new double[models.length+1][totalDays];
-
         int j=0;
-        StringBuilder sb = new StringBuilder();
         for (String tkrModel : models){
             j++;
             String netFile1 = NET + tkrModel + "_network1.txt";
@@ -450,14 +472,14 @@ mDir      , stdev, 100.03080758, 100.0308, 100.0308, 100.0308, 100.0308, 100.030
             nn2.readTopology(netFile2);
 
             for (int d = 0; d < totalDays; d++) {
-                double[] y1 = nn1.feedForward(tp.inputVector[d]);
-                double[] y2 = nn2.feedForward(tp.inputVector[d]);
+                double[] y1 = nn1.feedForward(bp.stockData.inputVector[d]);
+                double[] y2 = nn2.feedForward(bp.stockData.inputVector[d]);
                 buySignal[j][d] = y1[0];
                 sellSignal[j][d] = y2[0];
             }
-        }
+        }*/
 
-        // create detailed output of the summary signals with pricing
+ /*       // create detailed output of the summary signals with pricing
         StringBuilder results = new StringBuilder();
         StringBuilder sb3 = new StringBuilder();
         StringBuilder sb4 = new StringBuilder();
@@ -516,17 +538,9 @@ mDir      , stdev, 100.03080758, 100.0308, 100.0308, 100.0308, 100.0308, 100.030
             if( d>=totalDays-15 ) last15days[d-(totalDays-15)]=flag;
             if( d%90 ==0 ) pattern.append('\n');
         }
-
+*/
        // System.out.format("\nSignal pattern:\n%s\n",pattern);
 
-        BacktestingProcessor bp = new BacktestingProcessor( tkrSignal, String.format("simple backtest for %s",tkrSignal) );
-        bp.loadDataSet(kpiFile, filters, params, multiplier);
-
-        sb.append("last15=[").append(last15days).append("], ").append( bp.backtesting( buyVector, sellVector ).toJson() ).append('\n');
-
-        System.out.print( sb );
-        Utilities.writeFile(outFile,sb);
-    }
 
     public static void optimizeModels(String tkrSignal, String DB, String NET, String OUT, String[] models, String[] filters, String[] params, int multiplier, int neurons) {
         String kpiFile = DB + tkrSignal + "_kpis.txt";
@@ -542,8 +556,8 @@ mDir      , stdev, 100.03080758, 100.0308, 100.0308, 100.0308, 100.0308, 100.030
         for (int i = 0; i < models.length; i++) {
             String netFile1 = NET + models[i] + "_network1.txt";
             String netFile2 = NET + models[i] + "_network2.txt";
-            mx.loadPredictions( bp, i, netFile1, neurons);
-            mx.loadPredictions(bp,models.length + i, netFile2, neurons);
+            mx.loadPredictions( bp, i, String.format("by[%s]",models[i]), netFile1, neurons);
+            mx.loadPredictions(bp,models.length + i, String.format("sl[%s]",models[i]), netFile2, neurons);
         }
 
 
@@ -601,8 +615,8 @@ mDir      , stdev, 100.03080758, 100.0308, 100.0308, 100.0308, 100.0308, 100.030
         for (int m = 0; m < models.length; m++) {
             String netFile1 = NET + models[i] + "_network1.txt";
             String netFile2 = NET + models[i] + "_network2.txt";
-            mx2.loadPredictions( bp2, i, netFile1, neurons);
-            mx2.loadPredictions(bp2,models.length + i, netFile2, neurons);
+            mx2.loadPredictions( bp2, i, String.format("by[%s]",models[i]), netFile1, neurons);
+            mx2.loadPredictions(bp2,models.length + i, String.format("sl[%s]",models[i]), netFile2, neurons);
         }
 
         Document finalResult = mx2.forecast(bp2, mx.includeVector, mx.buyThreshold, mx.sellThreshold);
