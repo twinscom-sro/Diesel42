@@ -95,6 +95,11 @@ public class DeepLayer {
         return a * (1.0 - a);
     }
 
+    public void setLearningRate(double eta) {
+        LEARNING_RATE = eta;
+        System.out.format("Changing to eta=%.3f\n",LEARNING_RATE);
+    }
+
     // --- Forward Propagation ---
 
     /**
@@ -305,6 +310,7 @@ public class DeepLayer {
             sizes += String.format(", %d", layerSizes[l+1]);
         }
         config.append( String.format("config: {\n source: '%s',\n layers: %d,\n sizes: [ %s ] \n}\n", source, weights.length, sizes) );
+        config.append("\n##CONFIGURATION##, ").append(sizes);
 
         for (int l = 0; l < weights.length; l++) {
             config.append( String.format("\n##LAYER=%d##\n", l) );
@@ -330,5 +336,55 @@ public class DeepLayer {
         config.append( "\n##END-NETWORK##\n" );
         Utilities.writeFile(netFile,config);
     }
+
+    public void readTopology(String netFile) {
+        int numWeightLayers = layerSizes.length - 1;
+
+        String line;
+
+        // Use try-with-resources to ensure the BufferedReader is closed automatically
+        try (BufferedReader br = new BufferedReader(new FileReader(netFile))) {
+            //scan till you get to layer 1
+            while ((line = br.readLine()) != null) {
+                if( line.startsWith("##LAYER") ) break;
+            }
+
+        for (int l = 0; l < weights.length/*numWeightLayers*/; l++) {
+            int prevLayerSize = layerSizes[l];
+            int currentLayerSize = layerSizes[l + 1];
+
+            //System.out.format("Reading layer %d (of %d)\n",l, numWeightLayers);
+            // find the BIAS line
+            while ((line = br.readLine()) != null) {
+                if( line.startsWith("##BIAS") ) break;
+            }
+            //System.out.println(line);
+            String[] b = line.split(",");
+            for (int j = 0; j < layerSizes[l + 1]/*currentLayerSize*/; j++) {
+                // Initialize bias for neuron j in layer l+1
+                biases[l][j] = Double.parseDouble(b[j + 1]);
+            }
+            for (int j = 0; j < layerSizes[l + 1]/*currentLayerSize*/; j++) {
+                //System.out.format("Reading weights of layer[%d] %d (of %d)\n", l, j, currentLayerSize);
+                while ((line = br.readLine()) != null) {
+                    if( line.startsWith("## ") ) break;
+                }
+                //System.out.println(line);
+                String[] w = line.split(",");
+                //System.out.format("Read weights weights[%d][%d] vectors size %d\n", l,j,prevLayerSize);
+                for (int i = 0; i < layerSizes[l] /*prevLayerSize*/; i++) {
+                    // Initialize weight connecting neuron i (prev) to neuron j (current)
+                    weights[l][j][i] = Double.parseDouble(w[i + 1]);
+                }
+            }
+            //System.out.println("Reading complete");
+        }
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+
+        //writeTopology("copy", netFile+".copy.txt");
+    }
+
 }
 

@@ -12,7 +12,7 @@ public class Utilities {
             writer.write( sb.toString() );
             //writer.write("\n");
             writer.close();
-            System.out.println("Utilities::Writing file " + outFile);
+            //System.out.println("Utilities::Writing file " + outFile);
         } catch (IOException e) {
             throw new RuntimeException(e);
         }

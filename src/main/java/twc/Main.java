@@ -1,10 +1,16 @@
 package twc;
 
+import datamodels.JSON;
+import environment.Utilities;
 import neural.DeepLayer;
+import optimizationTasks.ModelMixer;
+import org.bson.Document;
+import predictorTasks.BacktestingProcessor;
 import trainingTasks.TrainingProcessor;
 import vectorTasks.VectorsProcessor;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 //TIP To <b>Run</b> code, press <shortcut actionId="Run"/> or
@@ -22,44 +28,101 @@ public class Main {
         }
     }*/
 
-    static String[] dji30 = { "GS",
-            "MSFT",
+    static final String MENU = """
+    Main menu:
+    0 - display help
+    1 - load/update KPI files. usage: java -jar Diesel.jar 1 <kpi> <netw> <out> "tkr1,tkr2...."
+    2 - train buy/sell networks. usage: java -jar Diesel.jar 2 <kpi> <netw> <out> "tkr1,tkr2...." <period-filter> <config> <mult> <iterations> <neurons>
+    3 - backtest buy/sell networks. usage: java -jar Diesel.jar 3 <kpi> <netw> <out> <model> "tkr1,tkr2...." <period-filter> <config> <mult> 
+    4 - optimize models. usage: java -jar Diesel.jar 3 <kpi> <netw> <out> <tkr> "model1,model2,...." <period-filter> <config> <mult> 
+    """;
+
+    //debugging:
+    static final int ITERATIONS = 100000;
+    static final String[] option1 = { "1", "c:/_db/kpis", "c:/_db/nets", "c:/_arcturus/2025-10-10",
+            "WMT,GS,MSFT,CAT,HD,UNH,V,SHW,AXP,JPM,MCD,AMGN,IBM,TRV,AAPL,CRM,BA,AMZN,HON,JNJ,NVDA,MMM,CVX,PG,DIS,MRK,CSCO,NKE,KO,VZ,COIN,SIL,MPW,PLUG,NNBR,GDXJ"};
+    static final String[] option2 = { "2", "c:/_db/kpis", "c:/_db/nets", "c:/_arcturus/2025-10-10",
+            "WMT,GS,MSFT,CAT,HD,MCD,CRM,BA,JNJ,PG,DIS,MRK,NKE,KO,VZ",
+            "2016,2017,2018,2019,2022,2023",
+            "cmf,obv,willR,atrPct,kcMPct,kcUPct,macdv,macdvSignal", "3", "100000"};
+    static final String[] option3 = { "3", "c:/_db/kpis", "c:/_db/nets", "c:/_arcturus/2025-10-10",
+            "WMT,GS,MSFT,CAT,HD,UNH,V,SHW,AXP,JPM,MCD,AMGN,IBM,TRV,AAPL,CRM,BA,AMZN,HON,JNJ,NVDA,MMM,CVX,PG,DIS,MRK,CSCO,NKE,KO,VZ",
+            "WMT,GS,MSFT,CAT,HD,MCD,CRM,BA,JNJ,PG,DIS,MRK,NKE,KO,VZ",
+            "2023,2024,2025",
+            "cmf,obv,willR,atrPct,kcMPct,kcUPct,macdv,macdvSignal", "3"};
+    static final String[] option4 = { "4", "c:/_db/kpis", "c:/_db/nets", "c:/_arcturus/2025-10-10",
             "CAT",
-            "HD",
-            "UNH",
-            "V",
-            "SHW",
-            "AXP",
-            "JPM",
-            "MCD",
-            "AMGN",
-            "IBM",
-            "TRV",
-            "AAPL",
-            "CRM",
-            "BA",
-            "AMZN",
-            "HON",
-            "JNJ",
-            "NVDA",
-            "MMM",
-            "CVX",
-            "PG",
-            "DIS",
-            "WMT",
-            "MRK",
-            "CSCO",
-            "NKE",
-            "KO",
-            "VZ"
-    };
+            "WMT,GS,MSFT,CAT,HD,MCD,CRM,BA,JNJ,PG,DIS,MRK,NKE,KO,VZ",
+            "2021,2022,2023,2024",
+            "cmf,obv,willR,atrPct,kcMPct,kcUPct,macdv,macdvSignal", "3"};
 
-    public static void main_01(String[] args) {
-        VectorsProcessor vp = new VectorsProcessor();
+    /*
+    LINUX 10/11/2025:
+java -jar Diesel42.2v.jar 1 ./kpis1011 ./nets1011a ./out1011a "WMT,GS,MSFT,CAT,HD,UNH,V,SHW,AXP,JPM,MCD,AMGN,IBM,TRV,AAPL,CRM,BA,AMZN,HON,JNJ,NVDA,MMM,CVX,PG,DIS,MRK,CSCO,NKE,KO,VZ,COIN,SIL,MPW,PLUG,NNBR,GDXJ"
+java -jar Diesel42.2v.jar 2 ./kpis1011 ./nets1011a ./out1011a "WMT" "2016,2017,2018,2019,2021,2022,2023" "cmf,obv,willR,atrPct,kcMPct,kcUPct,macdv,macdvSignal" 3 50000 4096 >t1.txt &
+java -jar Diesel42.2v.jar 2 ./kpis1011 ./nets1011a ./out1011a "WMT,GS,MSFT,CAT,HD" "2016,2017,2018,2019,2021,2022,2023" "cmf,obv,willR,atrPct,kcMPct,kcUPct,macdv,macdvSignal" 3 50000 >t1.txt &
 
-        for( String tkr : dji30 ) {
-            vp.runTask(tkr, "c:/_db/"+tkr+"_kpis.txt");
+,UNH,V,SHW,AXP,JPM,MCD,AMGN,IBM,TRV,AAPL,CRM,BA,AMZN,HON,JNJ,NVDA,MMM,CVX,PG,DIS,MRK,CSCO,NKE,KO,VZ,COIN,SIL,MPW,PLUG,NNBR,GDXJ"
+
+     */
+
+    public static void main(String[] args) {
+
+        //debugging:
+       //args = option4;
+
+        if( args.length < 5 ) {
+            System.out.println(MENU);
+            return;
         }
+        String task=args[0];
+        String KPI= args[1]+"/";
+        String NET= args[2]+"/";
+        String OUT= args[3]+"/";
+        String GROUP= args[4];
+        String[] tkr = GROUP.split(",");
+        if( task.contentEquals("1") ){
+            for( String t : tkr ) loadKPI( t, KPI, OUT );
+        }else if( task.contentEquals("2") ){
+            String[] periods = args[5].split(",");
+            String[] config = args[6].split(",");
+            int multiplier = Integer.parseInt(args[7]);
+            int iterations = Integer.parseInt(args[8]);
+            int neurons = Integer.parseInt(args[9]);
+            for( String t : tkr ) trainTicker( t, KPI, NET, OUT, periods, config, multiplier, iterations, neurons );
+        }else if( task.contentEquals("3") ){
+            String[] tkrSet = args[4].split(",");
+            String[] models = args[5].split(",");
+            String[] periods = args[6].split(",");
+            String[] config = args[7].split(",");
+            int neurons = Integer.parseInt(args[9]);
+            for( String tkr1 : tkrSet ) backtestTicker( tkr1, KPI, NET, OUT, models, periods, config, Integer.parseInt(args[8]), neurons );
+        }else if( task.contentEquals("4") ){
+            String tkrRef = args[4];
+            String[] models = args[5].split(",");
+            String[] periods = args[6].split(",");
+            String[] config = args[7].split(",");
+            int neurons = Integer.parseInt(args[9]);
+            for( String t : dji30 ) optimizeModels( t, KPI, NET, OUT, models, periods, config, Integer.parseInt(args[8]), neurons );
+        }else{
+            System.out.println( MENU );
+        }
+    }
+/*
+"cmf,obv,willR,kcMPct,kcUPct,macdv,macdvSignal"
+"WMT,GS,CAT,CRM,JNJ,KO"
+ */
+
+    static String[] dji30 = {"WMT","GS","MSFT","CAT","HD","UNH","V","SHW","AXP","JPM",
+    "MCD","AMGN","IBM","TRV","AAPL","CRM","BA","AMZN","HON","JNJ","NVDA","MMM",
+    "CVX","PG","DIS","MRK","CSCO","NKE","KO","VZ"};
+    static String[] dji30a = {"WMT","GS","CAT","CRM","JNJ","KO"};
+    static String[] dji30b = {"WMT","GS","CRM","JNJ"};
+
+    public static void loadKPI( String tkr, String KPI, String OUT ){
+        VectorsProcessor vp = new VectorsProcessor();
+        String fileName = KPI+tkr+"_kpis.txt";
+        JSON json = vp.runTask(tkr, fileName);
     }
 
     public static void main_02(String[] args) {
@@ -78,7 +141,7 @@ public class Main {
         for( String tkr : dji30 ) {
             String kpiFile = "c:/_db/"+tkr+"_kpis.txt";
 
-            tp.loadDataSet( kpiFile, filters, params);
+            tp.loadDataSet( kpiFile, filters, params, 1);
             tp.normalizeInputs("closeMA200xo",4.74292099,14.26543601);
             tp.normalizeInputs("closeMA50xo",1.27341681,6.92262897);
             tp.normalizeInputs("cmf",0.03265432,0.20682017);
@@ -197,41 +260,359 @@ mDir      , stdev, 100.03080758, 100.0308, 100.0308, 100.0308, 100.0308, 100.030
 
  */
 
-    public static void main(String[] args) {
+    public static void trainTicker(String tkr, String DB, String NET, String OUT, String[] filters, String[] params, int multiplier, int iterationsNum, int neurons) {
         // get scaling factors
         TrainingProcessor tp = new TrainingProcessor();
-        String[] filters = {"2021", "2022", "2023"};
-        String[] params = {"cmf", "macd", "macdSignal", "obv", "macdv", "macdvSignal", "pvo", "obv", "willR",
-                "kcLPct", "kcMPct", "kcUPct", "macdv", "macdvSignal", "mPhase", "mDir"};
-        for (String tkr : dji30) {
-            String kpiFile = "c:/_db/" + tkr + "_kpis.txt";
-            String outFile1 = "c:/_arcturus/neural/" + tkr + "_out1.txt";
-            String outFile2 = "c:/_arcturus/neural/" + tkr + "_out2.txt";
-            String outFile3 = "c:/_arcturus/neural/" + tkr + "_out3.txt";
-            String tsFile = "c:/_arcturus/neural/" + tkr + "_ts_2021.txt";
-            String netFile1 = "c:/_arcturus/neural/" + tkr + "_network1.txt";
-            String netFile2 = "c:/_arcturus/neural/" + tkr + "_network2.txt";
+        //String[] filters = {"2017", "2018", "2019", "2021", "2022", "2023"};
+        //String[] params =  {"cmf", "obv", "willR","kcMPct", "kcUPct", "macdv", "macdvSignal"};
+        //        String[] params = {"cmf", "macd", "macdSignal", "obv", "pvo", "mfi", "willR","kcLPct", "kcMPct", "kcUPct", "macdv", "macdvSignal"};
+        /*for (String tkr : dji30a)*/ {
+            String kpiFile = DB + tkr + "_kpis.txt";
+            String outFile1 = OUT + tkr + "_out1.txt";
+            String outFile2 = OUT + tkr + "_out2.txt";
+            String outFile3 = OUT + tkr + "_out3.txt";
+            String tsFile = OUT + tkr + "_ts_2021.txt";
+            String netFile1 = NET + tkr + "_network1.txt";
+            String netFile2 = NET + tkr + "_network2.txt";
 
-            tp.loadDataSet(kpiFile, filters, params);
+            tp.loadDataSet(kpiFile, filters, params, multiplier);
             tp.writeTrainingSet(tsFile);
 
             //deeplayer network
             int inputSize = tp.inputVector[0].length;
             double learningRate = 0.02;
-            int iterationsNum = 100;
-            DeepLayer nn1 = new DeepLayer(inputSize, 1024, 64, 8, 1);
+            //int iterationsNum = ITERATIONS;
+            DeepLayer nn1 = new DeepLayer(inputSize, neurons, 1);
             TrainingProcessor.train(nn1, tp.buySignal, tp.inputVector, learningRate, iterationsNum, outFile1);
             nn1.writeTopology("buySignal, "+kpiFile,netFile1);
-            DeepLayer nn2 = new DeepLayer(inputSize, 1024, 64, 8, 1);
+            DeepLayer nn2 = new DeepLayer(inputSize, neurons, 1);
             TrainingProcessor.train(nn2, tp.sellSignal, tp.inputVector, learningRate, iterationsNum, outFile2);
             nn2.writeTopology("sellSignal, "+kpiFile,netFile2);
 
             String[] filtersPred = {"2024", "2025"};
             TrainingProcessor tp2 = new TrainingProcessor();
-            tp2.loadDataSet(kpiFile, filtersPred, params);
+            tp2.loadDataSet(kpiFile, filtersPred, params, multiplier);
             tp2.writePredictions( nn1, tp2.buySignal, nn2, tp2.sellSignal, outFile3 );
-            break; //- debug only
+            //break; //- debug only
         }
+    }
+
+
+    public static void main_04(String[] args) {
+        // get scaling factors
+        TrainingProcessor tp = new TrainingProcessor();
+        String[] params =  {"cmf", "obv", "willR","kcLPct", "kcMPct", "kcUPct", "macdv", "macdvSignal"};
+//       String[] params = {"cmf", "macd", "macdSignal", "obv", "pvo", "mfi", "willR","kcLPct", "kcMPct", "kcUPct", "macdv", "macdvSignal"};
+        for (String tkr : dji30a) {
+            String kpiFile = "c:/_db/" + tkr + "_kpis.txt";
+            String outFile4 = "c:/_arcturus/neural/" + tkr + "_out4.txt";
+            String netFile1 = "c:/_arcturus/neural/" + tkr + "_network1.txt";
+            String netFile2 = "c:/_arcturus/neural/" + tkr + "_network2.txt";
+
+            DeepLayer nn1 = new DeepLayer(24, 1024, 1);
+            nn1.readTopology(netFile1);
+            DeepLayer nn2 = new DeepLayer(24, 1024, 1);
+            nn2.readTopology(netFile2);
+
+            String[] filtersPred = {"2024", "2025"};
+            TrainingProcessor tp2 = new TrainingProcessor();
+            tp2.loadDataSet(kpiFile, filtersPred, params, 3);
+            tp2.writePredictions( nn1, tp2.buySignal, nn2, tp2.sellSignal, outFile4 );
+            break; //-debug
+        }
+    }
+
+
+    public static void main_05(String tkr, String DB, String NET, String OUT, String[] models, String[] filters, String[] params, int multiplier) {
+        // get scaling factors
+       // TrainingProcessor tp = new TrainingProcessor();
+       // String[] params =  {"cmf", "obv", "willR","kcMPct", "kcUPct", "macdv", "macdvSignal"};
+        //String[] params =  {"cmf", "macd", "macdSignal", "obv", "pvo", "mfi", "willR","kcLPct", "kcMPct", "kcUPct", "macdv", "macdvSignal"};
+        //String[] newParams =  {"cmf", "obv", "willR","kcLPct", "kcMPct", "kcUPct", "macdv", "macdvSignal"};
+    /* results:
+     0, 0.000, 0.000, 0.000, 0.000
+ 1, *cmf -1.209, -5.085, 10.714, 0.000
+ 2, 1.754, 11.221, 0.000, 5.263
+ 3, 1.754, 16.667, 0.000, 0.000
+ 4, *obv -17.642, 47.368, 17.857, -47.368
+ 5, 1.754, 30.031, 0.000, -21.053
+ 6, 1.754, -1.754, 0.000, -31.579
+ 7, *willR -13.289, -1.754, -35.714, -57.895
+ 8, *kcLPct-0.412, -1.754, -10.714, -5.263
+ 9, *kcMPct -45.489, -49.183, -82.143, -73.684
+10, kcUPct 1.688, -55.878, -3.571, 31.579
+11, *macdv 11.538, -0.170, -50.000, 10.526
+12, *macdvSignal0.772, -18.129, -35.714, -47.368
+     */
+        StringBuilder results = new StringBuilder();
+
+        int columns = params.length;
+
+        /*for (String tkr : dji30a)*/ {
+            String kpiFile = DB + tkr + "_kpis.txt";
+            String netFile1 = NET + tkr + "_network1.txt";
+            String netFile2 = NET + tkr + "_network2.txt";
+
+            DeepLayer nn1 = new DeepLayer(35, 1024, 1);
+            nn1.readTopology(netFile1);
+            DeepLayer nn2 = new DeepLayer(35, 1024, 1);
+            nn2.readTopology(netFile2);
+
+            String[] filtersPred = /*{"2021", "2022", "2023"};//*/{"2024", "2025"};
+
+            double[] bsRecall = new double[columns+1];
+            double[] ssRecall = new double[columns+1];
+            double[] bsPrecision = new double[columns+1];
+            double[] ssPrecision = new double[columns+1];
+
+            for( int knockOut=0; knockOut<=columns; knockOut++ ) {
+                TrainingProcessor tp2 = new TrainingProcessor();
+                tp2.loadDataSet(kpiFile, filtersPred, params, 5);
+
+                if(knockOut>0) {
+                    System.out.println("Knocking out column num=" + knockOut);
+                    tp2.knockOutColumn(knockOut-1, columns, 5);
+                }
+                String tsFile = OUT+String.format("%s_ko_%d_ts_5_2021.txt",tkr,knockOut);
+                tp2.writeTrainingSet(tsFile);
+
+                System.out.println("input width="+tp2.inputVector[0].length);
+
+                String outFile5 = OUT+String.format("%s_ko_%d_5_out5.txt",tkr,knockOut);
+                tp2.writePredictions(nn1, tp2.buySignal, nn2, tp2.sellSignal, outFile5);
+                bsRecall[knockOut] = tp2.buySignalRecall;
+                ssRecall[knockOut] = tp2.sellSignalRecall;
+                bsPrecision[knockOut] = tp2.buySignalPrecision;
+                ssPrecision[knockOut] = tp2.sellSignalPrecision;
+            }
+
+            System.out.println("\nFINAL RESULTS for "+tkr+": Input Sensitivity Analysis");
+            results.append("\nFINAL RESULTS for "+tkr+": Input Sensitivity Analysis");
+            for( int i=0; i<=columns; i++ ) {
+                System.out.format("\n%2d, %.3f, %.3f, %.3f, %.3f",i,bsRecall[i],ssRecall[i],bsPrecision[i],ssPrecision[i]);
+                results.append( String.format("\n%2d, %.3f, %.3f, %.3f, %.3f",i,bsRecall[i],ssRecall[i],bsPrecision[i],ssPrecision[i]) );
+            }
+            System.out.println();
+            results.append("\n");
+
+            System.out.println("\nFINAL RESULTS for "+tkr+": Input Sensitivity Analysis - Fading Percentages");
+            results.append("\nFINAL RESULTS for "+tkr+": Input Sensitivity Analysis - Fading Percentages");
+            for( int i=0; i<=columns; i++ ) {
+                System.out.format("\n%2d, %.3f, %.3f, %.3f, %.3f",i,
+                        (bsRecall[i]/bsRecall[0]-1)*100,
+                        (ssRecall[i]/ssRecall[0]-1)*100,
+                        (bsPrecision[i]/bsPrecision[0]-1)*100,
+                        (ssPrecision[i]/ssPrecision[0]-1)*100);
+                results.append( String.format("\n%2d, %.3f, %.3f, %.3f, %.3f",i,
+                        (bsRecall[i]/bsRecall[0]-1)*100,
+                        (ssRecall[i]/ssRecall[0]-1)*100,
+                        (bsPrecision[i]/bsPrecision[0]-1)*100,
+                        (ssPrecision[i]/ssPrecision[0]-1)*100) );
+            }
+            System.out.println();
+            results.append("\n");
+            
+            //break; //-debug only
+        }
+        String resultsFile = OUT+"sensitivity_analysis_5.txt";
+        Utilities.writeFile(resultsFile, results);
+
+
+    }
+
+    public static void backtestTicker(String tkrSignal, String DB, String NET, String OUT,
+                                      String[] models, String[] filters, String[] params, int multiplier, int neurons){
+        //String[] params =  {"cmf", "obv", "willR","kcMPct", "kcUPct", "macdv", "macdvSignal"};
+        //String[] params =  {"cmf", "obv", "willR","kcLPct", "kcMPct", "kcUPct", "macdv", "macdvSignal"};
+        //String[] params =  {"cmf", "obv", "willR","kcMPct", "kcUPct", "macdv", "macdvSignal"};
+        //String[] filtersPred = {"2022","2023","2024", "2025"};
+        TrainingProcessor tp = new TrainingProcessor();
+        String kpiFile = DB + tkrSignal + "_kpis.txt";
+        String outFile = OUT+String.format("%s_backtesting.txt",tkrSignal);
+        tp.loadDataSet(kpiFile, filters, params, multiplier);
+        int totalDays = tp.samples;
+        int inputSize = tp.inputVector[0].length;
+        //System.out.println("Input size="+inputSize);
+
+        double[][] buySignal = new double[models.length+1][totalDays];
+        double[][] sellSignal = new double[models.length+1][totalDays];
+
+        int j=0;
+        StringBuilder sb = new StringBuilder();
+        for (String tkrModel : models){
+            j++;
+            String netFile1 = NET + tkrModel + "_network1.txt";
+            String netFile2 = NET + tkrModel + "_network2.txt";
+
+            DeepLayer nn1 = new DeepLayer(inputSize, neurons, 1);
+            nn1.readTopology(netFile1);
+            DeepLayer nn2 = new DeepLayer(inputSize, neurons, 1);
+            nn2.readTopology(netFile2);
+
+            for (int d = 0; d < totalDays; d++) {
+                double[] y1 = nn1.feedForward(tp.inputVector[d]);
+                double[] y2 = nn2.feedForward(tp.inputVector[d]);
+                buySignal[j][d] = y1[0];
+                sellSignal[j][d] = y2[0];
+            }
+        }
+
+        // create detailed output of the summary signals with pricing
+        StringBuilder results = new StringBuilder();
+        StringBuilder sb3 = new StringBuilder();
+        StringBuilder sb4 = new StringBuilder();
+        for( String tk : models ) {
+            sb3.append( String.format(", b[%s]",tk) );
+            sb4.append( String.format(", s[%s]",tk) );
+        }
+        results.append( String.format("DATES,PRICE,ZIGZAG,buy[Exp],sell[Exp],buy[Act],sell[Act]%s%s",sb3.toString(),sb4.toString()) );
+        char[] buyVector = new char[totalDays];
+        char[] sellVector = new char[totalDays];
+        int maxSig1=0;
+        int maxSig2=0;
+        for (int d = 0; d < totalDays; d++) {
+            int sig1=0;
+            int sig2=0;
+            StringBuilder sb1 = new StringBuilder();
+            StringBuilder sb2 = new StringBuilder();
+            for( int i=0; i<models.length; i++ ) {
+                if (buySignal[i][d] > 0.8) sig1++;
+                if (sellSignal[i][d] > 0.8) sig2++;
+                sb1.append(String.format(", %6.3f", buySignal[i][d]));
+                sb2.append(String.format(", %6.3f", sellSignal[i][d]));
+            }
+            buySignal[0][d]=sig1;
+            sellSignal[0][d]=sig2;
+            results.append( String.format("\n%10s, %.2f, %.2f, %.0f, %.0f, %3d, %3d%s%s",
+                    tp.dates[d], tp.price[d], tp.zigZag[d], tp.buySignal[d], tp.sellSignal[d],
+                    sig1,sig2,sb1.toString(),sb2.toString()) );
+            if( sig1>maxSig1 ) maxSig1=sig1;
+            if( sig2>maxSig2 ) maxSig2=sig2;
+        }
+        String resultsFile = OUT+String.format("%s_forecast.txt",tkrSignal);
+        Utilities.writeFile(resultsFile, results);
+
+        // create trading vector
+        StringBuilder pattern = new StringBuilder();
+        char[] last15days = new char[15];
+        maxSig1 = 3*maxSig1/4;
+        maxSig2 = 3*maxSig2/4;
+        for (int d = 0; d < totalDays; d++) {
+            buyVector[d]='0';
+            sellVector[d]='0';
+            if( buySignal[0][d] >= maxSig1 ) buyVector[d]='1';
+            if( sellSignal[0][d] >= maxSig2 ) sellVector[d]='1';
+
+            char flag='-';
+            if( buySignal[0][d] > 0 ) flag='b';
+            if( sellSignal[0][d] > 0 ) flag='s';
+            if( buySignal[0][d] > 0 && sellSignal[0][d] > 0 ) flag='x';
+
+            if( buyVector[d]=='1' && sellVector[d]!='1' ) flag='B';
+            if( buyVector[d]!='1' && sellVector[d]=='1' ) flag='S';
+            if( buyVector[d]=='1' && sellVector[d]=='1' ) flag='X';
+            //if( buyVector[d]!='1' && sellVector[d]!='1' ) pattern.append('-');
+            pattern.append( flag );
+            if( d>=totalDays-15 ) last15days[d-(totalDays-15)]=flag;
+            if( d%90 ==0 ) pattern.append('\n');
+        }
+
+       // System.out.format("\nSignal pattern:\n%s\n",pattern);
+
+        BacktestingProcessor bp = new BacktestingProcessor( tkrSignal, String.format("simple backtest for %s",tkrSignal) );
+        bp.loadDataSet(kpiFile, filters, params, multiplier);
+
+        sb.append("last15=[").append(last15days).append("], ").append( bp.backtesting( buyVector, sellVector ).toJson() ).append('\n');
+
+        System.out.print( sb );
+        Utilities.writeFile(outFile,sb);
+    }
+
+    public static void optimizeModels(String tkrSignal, String DB, String NET, String OUT, String[] models, String[] filters, String[] params, int multiplier, int neurons) {
+        String kpiFile = DB + tkrSignal + "_kpis.txt";
+        String outFile = OUT + String.format("%s_optimization.txt", tkrSignal);
+
+        BacktestingProcessor bp = new BacktestingProcessor(tkrSignal, String.format("backtest for %s", tkrSignal));
+        bp.loadDataSet(kpiFile, filters, params, multiplier);
+        int totalDays = bp.stockData.samples;
+        int inputSize = bp.stockData.inputVector[0].length;
+        System.out.println("Ticker="+tkrSignal+" Input size=" + inputSize + "  samples=" + totalDays);
+
+        ModelMixer mx = new ModelMixer(2*models.length, totalDays);
+        for (int i = 0; i < models.length; i++) {
+            String netFile1 = NET + models[i] + "_network1.txt";
+            String netFile2 = NET + models[i] + "_network2.txt";
+            mx.loadPredictions( bp, i, netFile1, neurons);
+            mx.loadPredictions(bp,models.length + i, netFile2, neurons);
+        }
+
+
+        StringBuilder sb = new StringBuilder();
+        mx.startOptimization(bp);
+
+        boolean addBuy=true;
+        int i=0;
+        double currentGain = mx.maxGain;
+        int ageOfLastChange=0;
+        while( mx.continueOptimization() && ageOfLastChange<100 ){
+            if( addBuy ){
+                int newCandidate = mx.addNextBuySignal(bp);
+                if( mx.maxGain>currentGain ) {
+                    mx.includeVector[newCandidate]='B';
+                    currentGain = mx.maxGain;
+                    ageOfLastChange=0;
+                    System.out.format("Adding buy model=%d (%d,%d), gain=%.2f\n",newCandidate, mx.buyThreshold, mx.sellThreshold, currentGain);
+                }else{
+                    ageOfLastChange++;
+                }
+            }else{
+                int newCandidate = mx.addNextSellSignal(bp);
+                if( mx.maxGain>currentGain ) {
+                    mx.includeVector[newCandidate]='S';
+                    currentGain = mx.maxGain;
+                    ageOfLastChange=0;
+                    System.out.format("Adding sell model=%d (%d,%d), gain=%.2f\n",newCandidate, mx.buyThreshold, mx.sellThreshold, currentGain);
+                }else{
+                    ageOfLastChange++;
+                }
+            }
+            addBuy = !addBuy;
+            mx.backtesting(bp);
+            if( ageOfLastChange>20 ){
+                mx.shakeIncludeVector(bp);
+            }
+        }
+        System.out.format("Ended with age=%d\n",ageOfLastChange);
+        System.out.format("Final maximum gain=%.2f, %s\n",currentGain, Arrays.toString(mx.includeVector));
+        //System.out.print(sb);
+
+        sb.append("\n\nFINAL CONFIG:\n");
+        mx.writeModelConfig(bp,sb);
+
+        mx.writeFinalPredictions(bp,sb);
+
+        sb.append("\n\nCURRENT SIGNAL MATRIX:\n");
+        mx.writeSignalsMatrix(sb);
+
+        BacktestingProcessor bp2 = new BacktestingProcessor(tkrSignal, String.format("final backtest for %s", tkrSignal));
+        bp2.loadDataSet(kpiFile, new String[]{"2024","2025"}, params, multiplier);
+
+        ModelMixer mx2 = new ModelMixer(2*models.length, bp2.totalDays);
+        for (int m = 0; m < models.length; m++) {
+            String netFile1 = NET + models[i] + "_network1.txt";
+            String netFile2 = NET + models[i] + "_network2.txt";
+            mx2.loadPredictions( bp2, i, netFile1, neurons);
+            mx2.loadPredictions(bp2,models.length + i, netFile2, neurons);
+        }
+
+        Document finalResult = mx2.forecast(bp2, mx.includeVector, mx.buyThreshold, mx.sellThreshold);
+        System.out.println( finalResult.toJson() );
+        sb.append("\n\nFINAL FORECAST:\n");
+        sb.append( finalResult.toJson() );
+        sb.append("\nTIME SERIES DATA:\n");
+        mx2.writeFinalPredictions(bp,sb);
+        Utilities.writeFile(outFile, sb);
+
     }
 
 }
