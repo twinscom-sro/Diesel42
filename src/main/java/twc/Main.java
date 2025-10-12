@@ -50,11 +50,15 @@ public class Main {
             "WMT,GS,MSFT,CAT,HD,MCD,CRM,BA,JNJ,PG,DIS,MRK,NKE,KO,VZ",
             "2023,2024,2025",
             "cmf,obv,willR,atrPct,kcMPct,kcUPct,macdv,macdvSignal", "3", "1024"};
+    static final String[] option3a= { "3", "c:/_db/kpis", "c:/_db/nets", "c:/_arcturus/2025-10-10",
+            "CAT","JNJ,DIS,WMT,GS,MCD,CRM",
+            "2023,2024,2025",
+            "cmf,obv,willR,atrPct,kcMPct,kcUPct,macdv,macdvSignal", "3", "1024"};
     static final String[] option4 = { "4", "c:/_db/kpis", "c:/_db/nets", "c:/_arcturus/2025-10-10",
             "CAT",
             "WMT,GS,MSFT,CAT,HD,MCD,CRM,BA,JNJ,PG,DIS,MRK,NKE,KO,VZ",
             "2021,2022,2023,2024",
-            "cmf,obv,willR,atrPct,kcMPct,kcUPct,macdv,macdvSignal", "3"};
+            "cmf,obv,willR,atrPct,kcMPct,kcUPct,macdv,macdvSignal", "3", "1024"};
 
     /*
     LINUX 10/11/2025:
@@ -64,12 +68,20 @@ java -jar Diesel42.2v.jar 2 ./kpis1011 ./nets1011a ./out1011a "WMT,GS,MSFT,CAT,H
 
 ,UNH,V,SHW,AXP,JPM,MCD,AMGN,IBM,TRV,AAPL,CRM,BA,AMZN,HON,JNJ,NVDA,MMM,CVX,PG,DIS,MRK,CSCO,NKE,KO,VZ,COIN,SIL,MPW,PLUG,NNBR,GDXJ"
 
+
+run nets1011b:
+java -jar Diesel42.2v.jar 2 ./kpis1011 ./nets1011b ./out1011b "WMT,GS,MSFT,CAT,HD" "2016,2017,2018,2019,2021,2022,2023" "cmf,obv,willR,atrPct,kcMPct,kcUPct,macdv,macdvSignal" 3 200000 603 > u1.txt &
+java -jar Diesel42.2v.jar 2 ./kpis1011 ./nets1011b ./out1011b "UNH,V,SHW,AXP,JPM" "2016,2017,2018,2019,2021,2022,2023" "cmf,obv,willR,atrPct,kcMPct,kcUPct,macdv,macdvSignal" 3 200000 603 > u2.txt &
+java -jar Diesel42.2v.jar 2 ./kpis1011 ./nets1011b ./out1011b "MCD,AMGN,IBM,TRV,AAPL" "2016,2017,2018,2019,2021,2022,2023" "cmf,obv,willR,atrPct,kcMPct,kcUPct,macdv,macdvSignal" 3 200000 603 > u3.txt &
+java -jar Diesel42.2v.jar 2 ./kpis1011 ./nets1011b ./out1011b "CRM,BA,AMZN,HON,JNJ" "2016,2017,2018,2019,2021,2022,2023" "cmf,obv,willR,atrPct,kcMPct,kcUPct,macdv,macdvSignal" 3 200000 603 > u4.txt &
+NVDA,MMM,CVX,PG,DIS,MRK,CSCO,NKE,KO,VZ,COIN,SIL,MPW,PLUG,NNBR,GDXJ
+
      */
 
     public static void main(String[] args) {
 
         //debugging:
-       args = option3;
+       args = option3a;
 
         if( args.length < 5 ) {
             System.out.println(MENU);
@@ -103,7 +115,7 @@ java -jar Diesel42.2v.jar 2 ./kpis1011 ./nets1011a ./out1011a "WMT,GS,MSFT,CAT,H
             String[] periods = args[6].split(",");
             String[] config = args[7].split(",");
             int neurons = Integer.parseInt(args[9]);
-            for( String t : dji30 ) optimizeModels( t, KPI, NET, OUT, models, periods, config, Integer.parseInt(args[8]), neurons );
+            /*for( String t : dji30 )*/ optimizeModels( tkrRef, KPI, NET, OUT, models, periods, config, Integer.parseInt(args[8]), neurons );
         }else{
             System.out.println( MENU );
         }
@@ -284,10 +296,10 @@ mDir      , stdev, 100.03080758, 100.0308, 100.0308, 100.0308, 100.0308, 100.030
             //int iterationsNum = ITERATIONS;
             DeepLayer nn1 = new DeepLayer(inputSize, neurons, 1);
             TrainingProcessor.train(nn1, tp.buySignal, tp.inputVector, learningRate, iterationsNum, outFile1);
-            nn1.writeTopology("buySignal, "+kpiFile,netFile1);
+            nn1.writeTopology("buySignal, "+kpiFile,netFile1,params,multiplier,iterationsNum,learningRate);
             DeepLayer nn2 = new DeepLayer(inputSize, neurons, 1);
             TrainingProcessor.train(nn2, tp.sellSignal, tp.inputVector, learningRate, iterationsNum, outFile2);
-            nn2.writeTopology("sellSignal, "+kpiFile,netFile2);
+            nn2.writeTopology("sellSignal, "+kpiFile,netFile2,params,multiplier,iterationsNum,learningRate);
 
             String[] filtersPred = {"2024", "2025"};
             TrainingProcessor tp2 = new TrainingProcessor();
@@ -450,7 +462,7 @@ mDir      , stdev, 100.03080758, 100.0308, 100.0308, 100.0308, 100.0308, 100.030
         }
         mx.recalculateSignals();
         mx.updateSignalPattern();
-        mx.writeForecastDetailMatrix(bp,resultsFile);
+        mx.writeForecastDetailMatrix(bp,sb);
 
         Document doc=bp.backtesting( mx.signals[0], mx.signals[1] );
         sb.append( doc.toJson() );
@@ -556,49 +568,17 @@ mDir      , stdev, 100.03080758, 100.0308, 100.0308, 100.0308, 100.0308, 100.030
         for (int i = 0; i < models.length; i++) {
             String netFile1 = NET + models[i] + "_network1.txt";
             String netFile2 = NET + models[i] + "_network2.txt";
-            mx.loadPredictions( bp, i, String.format("by[%s]",models[i]), netFile1, neurons);
-            mx.loadPredictions(bp,models.length + i, String.format("sl[%s]",models[i]), netFile2, neurons);
+            mx.loadPredictions( bp, i, String.format("buy(%s)",models[i]), netFile1, neurons);
+            mx.loadPredictions(bp,models.length + i, String.format("sell(%s)",models[i]), netFile2, neurons);
         }
 
 
         StringBuilder sb = new StringBuilder();
         mx.startOptimization(bp);
 
-        boolean addBuy=true;
-        int i=0;
-        double currentGain = mx.maxGain;
-        int ageOfLastChange=0;
-        while( mx.continueOptimization() && ageOfLastChange<100 ){
-            if( addBuy ){
-                int newCandidate = mx.addNextBuySignal(bp);
-                if( mx.maxGain>currentGain ) {
-                    mx.includeVector[newCandidate]='B';
-                    currentGain = mx.maxGain;
-                    ageOfLastChange=0;
-                    System.out.format("Adding buy model=%d (%d,%d), gain=%.2f\n",newCandidate, mx.buyThreshold, mx.sellThreshold, currentGain);
-                }else{
-                    ageOfLastChange++;
-                }
-            }else{
-                int newCandidate = mx.addNextSellSignal(bp);
-                if( mx.maxGain>currentGain ) {
-                    mx.includeVector[newCandidate]='S';
-                    currentGain = mx.maxGain;
-                    ageOfLastChange=0;
-                    System.out.format("Adding sell model=%d (%d,%d), gain=%.2f\n",newCandidate, mx.buyThreshold, mx.sellThreshold, currentGain);
-                }else{
-                    ageOfLastChange++;
-                }
-            }
-            addBuy = !addBuy;
-            mx.backtesting(bp);
-            if( ageOfLastChange>20 ){
-                mx.shakeIncludeVector(bp);
-            }
-        }
-        System.out.format("Ended with age=%d\n",ageOfLastChange);
-        System.out.format("Final maximum gain=%.2f, %s\n",currentGain, Arrays.toString(mx.includeVector));
-        //System.out.print(sb);
+        //mx.runOptimizer1(bp);
+        mx.runOptimizer2(bp);
+       //System.out.print(sb);
 
         sb.append("\n\nFINAL CONFIG:\n");
         mx.writeModelConfig(bp,sb);
@@ -607,24 +587,32 @@ mDir      , stdev, 100.03080758, 100.0308, 100.0308, 100.0308, 100.0308, 100.030
 
         sb.append("\n\nCURRENT SIGNAL MATRIX:\n");
         mx.writeSignalsMatrix(sb);
+        sb.append("\n\nOPTIMIZED RESULTS:\n");
+        Document optimalModel = mx.forecast(bp, mx.includeVector, mx.buyThreshold, mx.sellThreshold);
+        sb.append( optimalModel.toJson() );
+        System.out.println(optimalModel.toJson());
 
         BacktestingProcessor bp2 = new BacktestingProcessor(tkrSignal, String.format("final backtest for %s", tkrSignal));
         bp2.loadDataSet(kpiFile, new String[]{"2024","2025"}, params, multiplier);
 
         ModelMixer mx2 = new ModelMixer(2*models.length, bp2.totalDays);
         for (int m = 0; m < models.length; m++) {
-            String netFile1 = NET + models[i] + "_network1.txt";
-            String netFile2 = NET + models[i] + "_network2.txt";
-            mx2.loadPredictions( bp2, i, String.format("by[%s]",models[i]), netFile1, neurons);
-            mx2.loadPredictions(bp2,models.length + i, String.format("sl[%s]",models[i]), netFile2, neurons);
+            String netFile1 = NET + models[m] + "_network1.txt";
+            String netFile2 = NET + models[m] + "_network2.txt";
+            mx2.loadPredictions( bp2, m, String.format("by[%s]",models[m]), netFile1, neurons);
+            mx2.loadPredictions(bp2,models.length + m, String.format("sl[%s]",models[m]), netFile2, neurons);
         }
-
         Document finalResult = mx2.forecast(bp2, mx.includeVector, mx.buyThreshold, mx.sellThreshold);
         System.out.println( finalResult.toJson() );
         sb.append("\n\nFINAL FORECAST:\n");
         sb.append( finalResult.toJson() );
         sb.append("\nTIME SERIES DATA:\n");
-        mx2.writeFinalPredictions(bp,sb);
+        //mx2.writeFinalPredictions(bp,sb);
+        StringBuilder modelConfig = new StringBuilder();
+        mx2.writeModelConfig(bp2,modelConfig);
+        System.out.println("\nMODEL COFNIG:\n"+modelConfig.toString());
+        sb.append( modelConfig.toString() );
+        mx2.writeForecastDetailMatrix(bp2,sb);
         Utilities.writeFile(outFile, sb);
 
     }

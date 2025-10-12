@@ -6,7 +6,6 @@ import java.io.BufferedReader;
 import java.io.FileReader;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Random;
 
@@ -303,13 +302,15 @@ public class DeepLayer {
 
     }
 
-    public void writeTopology(String source, String netFile) {
+    public void writeTopology(String source, String netFile, String[] inputConfig, int multiplier, int iterationsNum, double learningRate) {
         StringBuilder config = new StringBuilder();
         String sizes = String.format("%d", layerSizes[0]);
         for (int l = 0; l < weights.length; l++) {
             sizes += String.format(", %d", layerSizes[l+1]);
         }
-        config.append( String.format("config: {\n source: '%s',\n layers: %d,\n sizes: [ %s ] \n}\n", source, weights.length, sizes) );
+        String inputConfiguration = String.join(",", inputConfig );
+        config.append( String.format("config: {\n source: '%s',\n inputConfig: '%s',\n historyMultiplier: %d,\n iterations: %d,\n leraningRate: %.4f,\n layers: %d,\n sizes: [ %s ] \n}\n",
+                source, inputConfiguration, multiplier, iterationsNum, learningRate, weights.length, sizes) );
         config.append("\n##CONFIGURATION##, ").append(sizes);
 
         for (int l = 0; l < weights.length; l++) {
