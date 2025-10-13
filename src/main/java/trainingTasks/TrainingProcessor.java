@@ -137,10 +137,26 @@ public class TrainingProcessor extends StockDataSet {
             return;
         }
 
+        boolean alternate = true;
         for (int epoch = 0; epoch < iterationsNum; epoch++) {
-            if( epoch==milestone1 ) network.setLearningRate(learningRate*2);
+            /*if( epoch==milestone1 ) network.setLearningRate(learningRate*2);
             if( epoch==milestone2 ) network.setLearningRate(learningRate);
             if( epoch==milestone3 ) network.setLearningRate(learningRate/2);
+*/
+            if( epoch<milestone1 && epoch%1000==0 ){
+                if(alternate) network.setLearningRate(learningRate);
+                if(!alternate) network.setLearningRate(learningRate*5);
+                alternate = !alternate;
+            }
+            if( epoch>milestone1 && epoch<milestone2 && epoch%500==0 ){
+                if(alternate) network.setLearningRate(learningRate);
+                if(!alternate) network.setLearningRate(learningRate*2);
+                alternate = !alternate;
+            }
+            if( epoch==milestone3 ) network.setLearningRate(learningRate);
+            if( epoch==milestone3 ) network.setLearningRate(learningRate/2);
+
+
 
             if( epoch<milestone2 && epoch%250 == 0 ){
                 for( int s1 : Signal1 ) {
@@ -177,8 +193,8 @@ public class TrainingProcessor extends StockDataSet {
 
                 int phase = epoch/500;
                 if( phase<entropy.length ) entropy[phase] = totalError;
-                String buf = String.format("Epoch %d: Average MSE = %.6f, TT=%d, TF=%d, FT=%d, FF=%d, Precision=%.3f, Recall=%.3f\n",
-                        epoch, totalError, TT, TF, FT, FF, precision, recall);
+                String buf = String.format("%s>Epoch %d: Average MSE = %.6f, TT=%d, TF=%d, FT=%d, FF=%d, Precision=%.3f, Recall=%.3f\n",
+                        Utilities.getTime(), epoch, totalError, TT, TF, FT, FF, precision, recall);
                 sb.append( buf );
                 System.out.print(buf);
             }//if
@@ -187,7 +203,10 @@ public class TrainingProcessor extends StockDataSet {
             //write predictions
             for (int i = 0; i < x.length; i++) {
                 double[] output = network.feedForward(x[i]);
+                sb.append( String.format("%d,%.4f\n",i,output[0]));
             }
+
+            Utilities.writeFile(outFile,sb);
 
         }
 

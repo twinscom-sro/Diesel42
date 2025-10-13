@@ -29,7 +29,10 @@
             <groupId>com.google.cloud</groupId>
             <artifactId>google-cloud-storage</artifactId>
             <version>1.17.0</version>
-        </dependency>   </dependencies>
+        </dependency>
+
+
+    </dependencies>
 
     <properties>
         <maven.compiler.source>24</maven.compiler.source>

@@ -11,7 +11,7 @@ import java.util.List;
 
 public class ModelMixer {
     public char[][] signals;
-    char[] signalPattern;
+    public char[] signalPattern;
     int totalDays;
     int numModels;
     public char[] includeVector;
@@ -32,6 +32,15 @@ public class ModelMixer {
         modelName = new String[numModels];
         modelName[0] = "BUY[Act]";
         modelName[1] = "SELL[Act]";
+    }
+
+    public static ModelMixer createFromModelFiles(List<String> modelFiles, int neurons, BacktestingProcessor bp) {
+        ModelMixer mx = new ModelMixer(modelFiles.size(), bp.totalDays);
+        for (int i = 0; i < modelFiles.size(); i++) {
+            // System.out.format("Loading optimization model=%s\n", modelFiles.get(i));
+            mx.loadPredictions( bp, i, modelFiles.get(i), modelFiles.get(i), neurons );
+        }
+        return mx;
     }
 
     public void loadPredictions(BacktestingProcessor bp, int pos, String _name, String netFile, int neurons) {
@@ -102,6 +111,7 @@ public class ModelMixer {
         if (buyThreshold1 < 1) buyThreshold1 = 1;
         if (sellThreshold1 < 1) sellThreshold1 = 1;
         for (int d = 0; d < totalDays; d++) {
+            signalPattern[d]=' ';
             int sumBuy = 0;
             int sumSell = 0;
             for (int i = 0; i < numModels; i++) {
@@ -110,6 +120,12 @@ public class ModelMixer {
             }
             signals[0][d] = (sumBuy >= buyThreshold1) ? 'B' : '-';
             signals[1][d] = (sumSell >= sellThreshold1) ? 'S' : '-';
+            if( sumBuy > 0 ) signalPattern[d]='b';
+            if( sumSell > 0 ) signalPattern[d]='s';
+            if( sumBuy >0 && sumSell>0 ) signalPattern[d]='x';
+            if( sumBuy  >= buyThreshold1 ) signalPattern[d]='B';
+            if( sumSell >= sellThreshold1 ) signalPattern[d]='S';
+            if( sumBuy  >= buyThreshold1 && sumSell >= sellThreshold1 ) signalPattern[d]='X';
         }
     }
 
@@ -287,19 +303,36 @@ public class ModelMixer {
 
       }
   */
-    public void writeModelConfig(BacktestingProcessor bp, StringBuilder sb) {
+
+    static String TEMPLATE = """
+{"%s", "%d", "%d", TRAINING_VECTOR, "3", %d, 
+     "%s",
+     "%s"},
+""";
+
+    public void writeModelConfig(BacktestingProcessor bp, StringBuilder sb, String tickerId, int neurons ) {
+        List<String> buys = new ArrayList<>();
+        List<String> sells = new ArrayList<>();
+
         for (int i = 0; i < numModels; i++) {
             if (includeVector[i] == 'B') {
                 sb.append(String.format("Buy Component: %s\n", modelFile[i]));
+                buys.add(modelFile[i]);
             }
         }
         for (int i = 0; i < numModels; i++) {
             if (includeVector[i] == 'S') {
                 sb.append(String.format("Sell Component: %s\n", modelFile[i]));
+                sells.add(modelFile[i]);
             }
         }
         sb.append(String.format("buyThreshold=%d\n", buyThreshold));
         sb.append(String.format("sellThreshold=%d\n", sellThreshold));
+
+
+
+        sb.append(String.format(TEMPLATE,tickerId,buyThreshold,sellThreshold,neurons,
+                String.join(",",buys),String.join(",",sells)));
     }
 
     public Document forecast(BacktestingProcessor bp, char[] _includeVector, int _buyThreshold, int _sellThreshold) {
@@ -413,7 +446,7 @@ public class ModelMixer {
                 if( vector[i] == 'B' ) items.add( modelName[i] );
                 if( vector[i] == 'S' ) items.add( modelName[i] );
             }
-            return String.format("VECTOR { gain: %.2f, buyThr: %d, sellThr: %d, models: [%s], vector:[%s]\n",
+            return String.format("VECTOR { gain: %.2f, buyThr: %d, sellThr: %d, models:%s, vector:%s\n",
                     gain, buyThreshold, sellThreshold, Arrays.toString(items.toArray()), Arrays.toString(vector) );
         }
     }
@@ -424,12 +457,14 @@ public class ModelMixer {
         int ageOfLastChange = 0;
         double maxGain = 0;
         double currentGain = 0;
+        int maxEpoch = includeVector.length*10;
+        //System.out.println("Max Epoch: " + maxEpoch);
         while (continueOptimization() && ageOfLastChange < 20) {
             recalculateSignals(includeVector, buyThreshold, sellThreshold);
             Document result = bp.backtesting(signals[0], signals[1]);
             currentGain = result.getDouble("totalGain");
-            System.out.format("Epoch=%d, gain=%.2f, vector=[%s]\n", epoch, currentGain, Arrays.toString(includeVector));
-            if (epoch++ > 50) break;
+            System.out.format("age=%d, Epoch=%d or %d, gain=%.2f, vector=[%s]\n", ageOfLastChange, epoch, maxEpoch, currentGain, formatVector(includeVector));
+            if (epoch++ > maxEpoch) break; // last resort exit
 
             if (epoch == 0) maxGain = currentGain; // initialize maximum
             if (currentGain > maxGain) {
@@ -438,13 +473,20 @@ public class ModelMixer {
                 optimumVectors.add( new OptimumVector(currentGain,buyThreshold,sellThreshold,includeVector,numModels) );
             }
 
+            if( epoch%50 == 0 ){
+                int k = (int)Math.floor((Math.random()*optimumVectors.size()));
+                System.out.println("Anniversary!!! Restoring from optiomum="+k);
+                if( k>=0 ){
+                    System.arraycopy(optimumVectors.get(k).vector, 0, includeVector, 0, includeVector.length);
+                    buyThreshold = optimumVectors.get(k).buyThreshold;
+                    sellThreshold = optimumVectors.get(k).sellThreshold;
+                }
+
+            }
+
             CandidateRecord buyCandidate = findNextBuyCandidate(bp);
             CandidateRecord sellCandidate = findNextSellCandidate(bp);
-            if ( (buyCandidate.gain < maxGain && sellCandidate.gain < maxGain) ) {
-                // shake model - remove randomly some items
-                shakeIncludeVector(bp);
-                ageOfLastChange = 0;
-            } else if (buyCandidate.gain > sellCandidate.gain && buyCandidate.gain>maxGain) {
+            if(buyCandidate.gain > sellCandidate.gain && buyCandidate.gain>maxGain) {
                 includeVector[buyCandidate.id] = 'B';
                 buyThreshold = buyCandidate.buyThreshold;
                 sellThreshold = buyCandidate.sellThreshold;
@@ -456,14 +498,30 @@ public class ModelMixer {
                 sellThreshold = sellCandidate.sellThreshold;
                 System.out.format("Adding sell model=%d (%d,%d), gain=%.2f\n", sellCandidate.id, sellCandidate.buyThreshold, sellCandidate.sellThreshold, sellCandidate.gain);
                 ageOfLastChange = 0;
+            }else if( ageOfLastChange>3 ){
+                    // reset to best vector
+                    int k = optimumVectors.size()-1;
+                    System.out.println("Restoring from last maximum="+k);
+                    if( k>=0 ){
+                        System.arraycopy(optimumVectors.get(k).vector, 0, includeVector, 0, includeVector.length);
+                        buyThreshold = optimumVectors.get(k).buyThreshold;
+                        sellThreshold = optimumVectors.get(k).sellThreshold;
+                    }
+                    ageOfLastChange = 0;
+               }else if( ageOfLastChange>2 ) {
+                    if (Math.random() >= 0.5) {
+                        if (buyCandidate.id >= 0) includeVector[buyCandidate.id] = 'B';
+                    } else {
+                        if (sellCandidate.id >= 0) includeVector[sellCandidate.id] = 'S';
+                    }
+                ageOfLastChange = ageOfLastChange + 1;
+            }else if( Math.random()>=0.7 ){
+                System.out.println("Shake model.");
+                shakeIncludeVector(bp);
+                ageOfLastChange = 0;
             }else{
-                if( ageOfLastChange>5 ){
-                    includeVector[buyCandidate.id] = 'B';
-                    includeVector[sellCandidate.id] = 'S';
-                }
-
+                ageOfLastChange = ageOfLastChange + 1;
             }
-            ageOfLastChange = ageOfLastChange + 1;
         }
         System.out.format("Ended with age=%d\n", ageOfLastChange);
         System.out.format("Final maximum gain=%.2f, %s\n", currentGain, Arrays.toString(includeVector));
@@ -471,6 +529,23 @@ public class ModelMixer {
         for (OptimumVector optimumVector : optimumVectors) {
             System.out.println( optimumVector.format() );
         }
+        int iMax=-1;
+        double gMax=0;
+        for( int i = 0; i < optimumVectors.size(); i++ ) {
+            double gain = optimumVectors.get(i).gain;
+            if( i==0 || gain>gMax ){
+                iMax=i;
+                gMax=gain;
+            }
+        }
+        if( iMax>=0 ){
+            System.out.format("Max index=%d gain=%.2f\n", iMax, gMax);
+            System.arraycopy(optimumVectors.get(iMax).vector, 0, includeVector, 0, includeVector.length);
+            buyThreshold = optimumVectors.get(iMax).buyThreshold;
+            sellThreshold = optimumVectors.get(iMax).sellThreshold;
+            recalculateSignals(includeVector, buyThreshold, sellThreshold);
+        }
+
     }
 
     public void shakeIncludeVector(BacktestingProcessor bp) {
@@ -527,6 +602,10 @@ public class ModelMixer {
             if ( A == c ) count++;
         }
         return count;
+    }
+
+    private String formatVector( char[] vector ) {
+        return new String(vector);
     }
 
     private CandidateRecord findNextBuyCandidate(BacktestingProcessor bp) {
