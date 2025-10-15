@@ -41,10 +41,10 @@ public class Main {
 
     //debugging:
     static final String ITERATIONS = "10000";
-    static final String NEURONS = "603"; //"1024";
+    static final String NEURONS = "1024";
     static final String KPIS = "c:/_db/kpis";
-    static final String NETS = "c:/_db/nets603-twc3";
-    static final String OUTS = "c:/_arcturus/2025-10-13-twc3";
+    static final String NETS = "c:/_db/nets64_vega1";
+    static final String OUTS = "c:/_arcturus/2025-10-13a";
     static final String VECTOR = "cmf,obv,willR,atrPct,kcMPct,kcUPct,macdv,macdvSignal";
     static final String HISTORY = "3";
 
@@ -79,7 +79,7 @@ public class Main {
 
 
     static final String[] option3 = { "3", KPIS, NETS, OUTS,
-            "CAT",//WMT,GS,MSFT,CAT,HD,UNH,V,SHW,AXP,JPM,MCD,AMGN,IBM,TRV,AAPL,CRM,BA,AMZN,HON,JNJ,NVDA,MMM,CVX,PG,DIS,MRK,CSCO,NKE,KO,VZ",
+            "CAT,WMT,GS,MSFT,CAT,HD,UNH,V,SHW,AXP,JPM,MCD,AMGN,IBM,TRV,AAPL,CRM,BA,AMZN,HON,JNJ,NVDA,MMM,CVX,PG,DIS,MRK,CSCO,NKE,KO,VZ",
             "WMT,GS,MSFT,CAT,HD,MCD,CRM,BA,JNJ,PG,DIS,MRK,NKE,KO,VZ",
             "2023,2024,2025",
             VECTOR, HISTORY, NEURONS};
@@ -88,8 +88,8 @@ public class Main {
             "WMT,GS,MSFT,CAT,HD,MCD,CRM,BA,JNJ,PG,DIS,MRK,NKE,KO,VZ",
             "2021,2022,2023,2024",
             VECTOR, HISTORY, NEURONS};
-    static final String[] option5 = { "5", KPIS, "C:/_db/nets603_twc3/", OUTS,
-            "CAT","2021,2022,2023,2024", VECTOR, HISTORY, NEURONS};
+    static final String[] option5 = { "5", KPIS, "C:/_db/nets1024_vega2/", "C:/_arcturus/2025-10-14-vega2/",
+            "X","2021,2022,2023,2024", VECTOR, HISTORY, NEURONS};
     /*
     {   methodId: "OPTIMIZE5",
         tickerId: "IBM",

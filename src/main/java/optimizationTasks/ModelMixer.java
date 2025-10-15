@@ -145,8 +145,8 @@ public class ModelMixer {
             if (sumSell > maxSellSignals) maxSellSignals = sumSell;
         }
 
-        buyThreshold = maxBuySignals * 3 / 4;
-        sellThreshold = maxSellSignals * 3 / 4;
+        buyThreshold = maxBuySignals * 1 / 5;
+        sellThreshold = maxSellSignals * 1 / 5;
         for (int d = 0; d < totalDays; d++) {
             int sumBuy = 0;
             int sumSell = 0;
