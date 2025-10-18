@@ -12,27 +12,44 @@ public class Predictions {
 
 
     public static void main(String[] args) {
+        String[][][] MODEL_DB = { MODELS_1024orig, MODELS_603twc3, MODELS_64vega1, MODELS_1024vega2, MODELS_256vega3  };
+        String[] MODEL_FILE = {
+                "C:/_db/models/MODELS_1024orig.txt",
+                "C:/_db/models/MODELS_603twc3.txt",
+                "C:/_db/models/MODELS_64vega1.txt",
+                "C:/_db/models/MODELS_1024vega2.txt" };
 
         String KPI = "C:/_db/kpis/";
-        String OUT = "C:/_arcturus/2025-10-13-twc3/";
+        String OUT = "C:/_arcturus/2025-10-14-vega2/";
+        String MDB = "C:/_db/models/20251015.txt";
 
-        for (String[] model : MODELS_603twc3 /*MODELS_1024orig /*MODELS_64vega1*/) {
-            String tickerId = model[0];
-            int buyThreshold = Integer.parseInt(model[1]);
-            int sellThreshold = Integer.parseInt(model[2]);
-            String[] config = model[3].split(",");
-            int multiplier = Integer.parseInt(model[4]);
-            int neurons = Integer.parseInt(model[5]);
-            String[] buyModels = model[6].split(",");
-            String[] sellModels = model[7].split(",");
-            String[] periods = {"2024", "2025"};
-            backtestModels(tickerId, KPI, OUT, buyModels, sellModels, buyThreshold, sellThreshold, periods, config, multiplier, neurons);
-            //break;
+        StringBuilder modelDB = new StringBuilder();
+
+        for( int i=0; i<MODEL_DB.length; i++ ) {
+            String[][] MODELS = MODEL_DB[i];
+            String MDB2 = MODEL_FILE[i];
+
+            for (String[] model : MODELS) {
+                String tickerId = model[0];
+                int buyThreshold = Integer.parseInt(model[1]);
+                int sellThreshold = Integer.parseInt(model[2]);
+                String[] config = model[3].split(",");
+                int multiplier = Integer.parseInt(model[4]);
+                int neurons = Integer.parseInt(model[5]);
+                String[] buyModels = model[6].split(",");
+                String[] sellModels = model[7].split(",");
+                String[] periods = {"2024", "2025"};
+
+                backtestModels(modelDB, MDB2, tickerId, KPI, OUT, buyModels, sellModels, buyThreshold, sellThreshold, periods, config, multiplier, neurons);
+                //break;
+            }
         }
+
+        Utilities.writeFile(MDB,modelDB);
     }
 
 
-    private static void backtestModels(String tickerId, String KPIS, String OUT, String[] buyModels, String[] sellModels, int buyThreshold, int sellThreshold, String[] periods, String[] config, int multiplier, int neurons) {
+    static Document backtestModels(StringBuilder mdb, String modelId, String tickerId, String KPIS, String OUT, String[] buyModels, String[] sellModels, int buyThreshold, int sellThreshold, String[] periods, String[] config, int multiplier, int neurons) {
             String kpiFile = KPIS + tickerId + "_kpis.txt";
             String outFile = OUT + String.format("%s_%s_forecast.txt", tickerId, Utilities.getTimeTag() );
             StringBuilder sb1 = new StringBuilder();
@@ -60,12 +77,135 @@ public class Predictions {
             sb1.append("\n--------------------------------------------\n");
             mx.writeForecastDetailMatrix(bp,sb1);
             Utilities.writeFile(outFile, sb1);
+            result.append("modelId",modelId);
+            mdb.append( result.toJson() ).append(",\n");
+
+            return result;
 
     }
 
 
-
     final static String TRAINING_VECTOR = "cmf,obv,willR,atrPct,kcMPct,kcUPct,macdv,macdvSignal";
+
+
+    final static String[][] MODELS_256vega3 = {
+
+            {"SIL", "3", "1", TRAINING_VECTOR, "3", "256",
+                    "C:/_db/nets256_vega3/BA_network2.txt,C:/_db/nets256_vega3/CVX_network2.txt,C:/_db/nets256_vega3/DIS_network2.txt,C:/_db/nets256_vega3/HD_network1.txt,C:/_db/nets256_vega3/NNBR_network1.txt,C:/_db/nets256_vega3/NNBR_network2.txt,C:/_db/nets256_vega3/PG_network1.txt,C:/_db/nets256_vega3/PG_network2.txt,C:/_db/nets256_vega3/SIL_network1.txt",
+                    "C:/_db/nets256_vega3/AMGN_network2.txt,C:/_db/nets256_vega3/COIN_network1.txt,C:/_db/nets256_vega3/COIN_network2.txt,C:/_db/nets256_vega3/CRM_network2.txt,C:/_db/nets256_vega3/GDXJ_network2.txt,C:/_db/nets256_vega3/NVDA_network2.txt,C:/_db/nets256_vega3/SIL_network2.txt"},
+    };
+
+    final static String[][] MODELS_1024vega2 = {
+            {"AAPL", "2", "1", TRAINING_VECTOR, "3", "1024",
+                    "C:/_db/nets1024_vega2/AMZN_network1.txt,C:/_db/nets1024_vega2/AXP_network2.txt,C:/_db/nets1024_vega2/BA_network1.txt,C:/_db/nets1024_vega2/CAT_network1.txt,C:/_db/nets1024_vega2/CRM_network1.txt,C:/_db/nets1024_vega2/GS_network1.txt,C:/_db/nets1024_vega2/MPW_network1.txt,C:/_db/nets1024_vega2/MRK_network1.txt,C:/_db/nets1024_vega2/NVDA_network1.txt",
+                    "C:/_db/nets1024_vega2/CSCO_network1.txt,C:/_db/nets1024_vega2/GDXJ_network1.txt,C:/_db/nets1024_vega2/MSFT_network1.txt"},
+            {"AMGN", "1", "1", TRAINING_VECTOR, "3", "1024",
+                    "C:/_db/nets1024_vega2/AMZN_network2.txt,C:/_db/nets1024_vega2/BA_network2.txt,C:/_db/nets1024_vega2/DIS_network2.txt,C:/_db/nets1024_vega2/MCD_network2.txt,C:/_db/nets1024_vega2/SIL_network1.txt",
+                    "C:/_db/nets1024_vega2/CRM_network2.txt,C:/_db/nets1024_vega2/HON_network2.txt,C:/_db/nets1024_vega2/JNJ_network2.txt,C:/_db/nets1024_vega2/PLUG_network1.txt,C:/_db/nets1024_vega2/UNH_network2.txt"},
+            {"AMZN", "8", "3", TRAINING_VECTOR, "3", "1024",
+                    "C:/_db/nets1024_vega2/AMZN_network2.txt,C:/_db/nets1024_vega2/CAT_network2.txt,C:/_db/nets1024_vega2/CRM_network1.txt,C:/_db/nets1024_vega2/GDXJ_network2.txt,C:/_db/nets1024_vega2/HD_network1.txt,C:/_db/nets1024_vega2/IBM_network1.txt,C:/_db/nets1024_vega2/JPM_network1.txt,C:/_db/nets1024_vega2/MPW_network1.txt,C:/_db/nets1024_vega2/NVDA_network1.txt,C:/_db/nets1024_vega2/SHW_network1.txt,C:/_db/nets1024_vega2/SIL_network1.txt,C:/_db/nets1024_vega2/SIL_network2.txt",
+                    "C:/_db/nets1024_vega2/CSCO_network2.txt,C:/_db/nets1024_vega2/MCD_network2.txt,C:/_db/nets1024_vega2/MSFT_network2.txt,C:/_db/nets1024_vega2/WMT_network2.txt"},
+            {"AXP", "1", "2", TRAINING_VECTOR, "3", "1024",
+                    "C:/_db/nets1024_vega2/GDXJ_network1.txt,C:/_db/nets1024_vega2/TRV_network1.txt",
+                    "C:/_db/nets1024_vega2/CRM_network1.txt,C:/_db/nets1024_vega2/KO_network1.txt,C:/_db/nets1024_vega2/MMM_network2.txt,C:/_db/nets1024_vega2/NVDA_network2.txt"},
+            {"BA", "1", "3", TRAINING_VECTOR, "3", "1024",
+                    "C:/_db/nets1024_vega2/AMGN_network2.txt,C:/_db/nets1024_vega2/BA_network2.txt,C:/_db/nets1024_vega2/COIN_network1.txt,C:/_db/nets1024_vega2/CRM_network2.txt,C:/_db/nets1024_vega2/MPW_network2.txt,C:/_db/nets1024_vega2/MRK_network2.txt",
+                    "C:/_db/nets1024_vega2/AMZN_network2.txt,C:/_db/nets1024_vega2/JPM_network2.txt,C:/_db/nets1024_vega2/KO_network2.txt,C:/_db/nets1024_vega2/MCD_network2.txt,C:/_db/nets1024_vega2/MMM_network2.txt,C:/_db/nets1024_vega2/NNBR_network2.txt,C:/_db/nets1024_vega2/NVDA_network1.txt,C:/_db/nets1024_vega2/NVDA_network2.txt,C:/_db/nets1024_vega2/PG_network2.txt,C:/_db/nets1024_vega2/PLUG_network1.txt"},
+            {"CAT", "6", "1", TRAINING_VECTOR, "3", "1024",
+                    "C:/_db/nets1024_vega2/AAPL_network1.txt,C:/_db/nets1024_vega2/AXP_network1.txt,C:/_db/nets1024_vega2/CAT_network1.txt,C:/_db/nets1024_vega2/COIN_network1.txt,C:/_db/nets1024_vega2/CSCO_network1.txt,C:/_db/nets1024_vega2/JNJ_network1.txt,C:/_db/nets1024_vega2/MCD_network1.txt,C:/_db/nets1024_vega2/MMM_network1.txt,C:/_db/nets1024_vega2/MPW_network1.txt,C:/_db/nets1024_vega2/NNBR_network1.txt",
+                    "C:/_db/nets1024_vega2/MCD_network2.txt,C:/_db/nets1024_vega2/MSFT_network1.txt,C:/_db/nets1024_vega2/SIL_network1.txt"},
+            {"COIN", "2", "2", TRAINING_VECTOR, "3", "1024",
+                    "C:/_db/nets1024_vega2/COIN_network1.txt,C:/_db/nets1024_vega2/MCD_network2.txt,C:/_db/nets1024_vega2/SHW_network1.txt",
+                    "C:/_db/nets1024_vega2/CRM_network1.txt,C:/_db/nets1024_vega2/GDXJ_network2.txt,C:/_db/nets1024_vega2/PLUG_network1.txt"},
+            {"CRM", "3", "2", TRAINING_VECTOR, "3", "1024",
+                    "C:/_db/nets1024_vega2/AMZN_network1.txt,C:/_db/nets1024_vega2/AXP_network1.txt,C:/_db/nets1024_vega2/CAT_network1.txt,C:/_db/nets1024_vega2/CSCO_network2.txt,C:/_db/nets1024_vega2/CVX_network1.txt,C:/_db/nets1024_vega2/IBM_network1.txt,C:/_db/nets1024_vega2/MPW_network1.txt,C:/_db/nets1024_vega2/MSFT_network1.txt",
+                    "C:/_db/nets1024_vega2/AAPL_network1.txt,C:/_db/nets1024_vega2/DIS_network1.txt,C:/_db/nets1024_vega2/GS_network1.txt,C:/_db/nets1024_vega2/HON_network1.txt,C:/_db/nets1024_vega2/MSFT_network2.txt"},
+            {"CSCO", "1", "5", TRAINING_VECTOR, "3", "1024",
+                    "C:/_db/nets1024_vega2/AAPL_network2.txt,C:/_db/nets1024_vega2/AMGN_network2.txt,C:/_db/nets1024_vega2/MSFT_network2.txt,C:/_db/nets1024_vega2/NVDA_network2.txt,C:/_db/nets1024_vega2/PLUG_network1.txt",
+                    "C:/_db/nets1024_vega2/CRM_network2.txt,C:/_db/nets1024_vega2/MMM_network2.txt,C:/_db/nets1024_vega2/PLUG_network2.txt,C:/_db/nets1024_vega2/SHW_network2.txt,C:/_db/nets1024_vega2/SIL_network2.txt,C:/_db/nets1024_vega2/UNH_network2.txt,C:/_db/nets1024_vega2/VZ_network2.txt"},
+            {"CVX", "1", "1", TRAINING_VECTOR, "3", "1024",
+                    "C:/_db/nets1024_vega2/AMZN_network1.txt,C:/_db/nets1024_vega2/CVX_network1.txt,C:/_db/nets1024_vega2/JNJ_network1.txt,C:/_db/nets1024_vega2/KO_network2.txt",
+                    "C:/_db/nets1024_vega2/AAPL_network1.txt,C:/_db/nets1024_vega2/MCD_network1.txt,C:/_db/nets1024_vega2/SHW_network1.txt"},
+            {"DIS", "1", "1", TRAINING_VECTOR, "3", "1024",
+                    "C:/_db/nets1024_vega2/AAPL_network2.txt,C:/_db/nets1024_vega2/CSCO_network2.txt,C:/_db/nets1024_vega2/IBM_network2.txt,C:/_db/nets1024_vega2/MPW_network2.txt",
+                    "C:/_db/nets1024_vega2/AMGN_network2.txt,C:/_db/nets1024_vega2/GS_network2.txt,C:/_db/nets1024_vega2/PLUG_network1.txt,C:/_db/nets1024_vega2/SHW_network2.txt,C:/_db/nets1024_vega2/V_network2.txt"},
+            {"GS", "1", "1", TRAINING_VECTOR, "3", "1024",
+                    "C:/_db/nets1024_vega2/CRM_network1.txt,C:/_db/nets1024_vega2/CRM_network2.txt,C:/_db/nets1024_vega2/HD_network1.txt,C:/_db/nets1024_vega2/MPW_network2.txt,C:/_db/nets1024_vega2/MRK_network2.txt,C:/_db/nets1024_vega2/NVDA_network2.txt,C:/_db/nets1024_vega2/WMT_network2.txt",
+                    "C:/_db/nets1024_vega2/COIN_network1.txt,C:/_db/nets1024_vega2/COIN_network2.txt,C:/_db/nets1024_vega2/GS_network2.txt,C:/_db/nets1024_vega2/NKE_network2.txt"},
+            {"HD", "3", "3", TRAINING_VECTOR, "3", "1024",
+                    "C:/_db/nets1024_vega2/AMGN_network2.txt,C:/_db/nets1024_vega2/AMZN_network2.txt,C:/_db/nets1024_vega2/CSCO_network1.txt,C:/_db/nets1024_vega2/DIS_network2.txt,C:/_db/nets1024_vega2/JNJ_network1.txt,C:/_db/nets1024_vega2/MRK_network1.txt,C:/_db/nets1024_vega2/NKE_network1.txt",
+                    "C:/_db/nets1024_vega2/AMZN_network1.txt,C:/_db/nets1024_vega2/CAT_network1.txt,C:/_db/nets1024_vega2/COIN_network1.txt,C:/_db/nets1024_vega2/CRM_network2.txt,C:/_db/nets1024_vega2/HD_network2.txt,C:/_db/nets1024_vega2/MMM_network2.txt,C:/_db/nets1024_vega2/MSFT_network1.txt,C:/_db/nets1024_vega2/SHW_network2.txt,C:/_db/nets1024_vega2/SIL_network1.txt"},
+            {"HON", "5", "1", TRAINING_VECTOR, "3", "1024",
+                    "C:/_db/nets1024_vega2/AAPL_network1.txt,C:/_db/nets1024_vega2/CAT_network1.txt,C:/_db/nets1024_vega2/CRM_network1.txt,C:/_db/nets1024_vega2/GDXJ_network1.txt,C:/_db/nets1024_vega2/HON_network1.txt,C:/_db/nets1024_vega2/JPM_network1.txt,C:/_db/nets1024_vega2/MPW_network1.txt,C:/_db/nets1024_vega2/NNBR_network1.txt,C:/_db/nets1024_vega2/SHW_network1.txt,C:/_db/nets1024_vega2/V_network1.txt",
+                    "C:/_db/nets1024_vega2/AXP_network1.txt,C:/_db/nets1024_vega2/MCD_network2.txt,C:/_db/nets1024_vega2/NVDA_network1.txt"},
+            {"IBM", "1", "1", TRAINING_VECTOR, "3", "1024",
+                    "C:/_db/nets1024_vega2/IBM_network1.txt,C:/_db/nets1024_vega2/MCD_network1.txt,C:/_db/nets1024_vega2/MPW_network1.txt,C:/_db/nets1024_vega2/V_network1.txt",
+                    "C:/_db/nets1024_vega2/AMGN_network1.txt,C:/_db/nets1024_vega2/AMZN_network1.txt,C:/_db/nets1024_vega2/AXP_network1.txt,C:/_db/nets1024_vega2/JPM_network1.txt,C:/_db/nets1024_vega2/MMM_network1.txt,C:/_db/nets1024_vega2/NVDA_network1.txt,C:/_db/nets1024_vega2/NVDA_network2.txt,C:/_db/nets1024_vega2/SHW_network1.txt"},
+            {"JNJ", "2", "1", TRAINING_VECTOR, "3", "1024",
+                    "C:/_db/nets1024_vega2/AMGN_network1.txt,C:/_db/nets1024_vega2/GS_network2.txt,C:/_db/nets1024_vega2/HD_network2.txt,C:/_db/nets1024_vega2/IBM_network1.txt,C:/_db/nets1024_vega2/MPW_network2.txt,C:/_db/nets1024_vega2/NVDA_network2.txt,C:/_db/nets1024_vega2/VZ_network1.txt",
+                    "C:/_db/nets1024_vega2/AMZN_network2.txt,C:/_db/nets1024_vega2/GS_network1.txt,C:/_db/nets1024_vega2/JPM_network2.txt,C:/_db/nets1024_vega2/UNH_network1.txt"},
+            {"JPM", "1", "2", TRAINING_VECTOR, "3", "1024",
+                    "C:/_db/nets1024_vega2/AMZN_network2.txt,C:/_db/nets1024_vega2/COIN_network2.txt,C:/_db/nets1024_vega2/JNJ_network1.txt,C:/_db/nets1024_vega2/NVDA_network2.txt",
+                    "C:/_db/nets1024_vega2/BA_network2.txt,C:/_db/nets1024_vega2/JPM_network2.txt,C:/_db/nets1024_vega2/MCD_network1.txt,C:/_db/nets1024_vega2/NNBR_network1.txt,C:/_db/nets1024_vega2/NVDA_network1.txt,C:/_db/nets1024_vega2/PLUG_network1.txt,C:/_db/nets1024_vega2/VZ_network2.txt"},
+            {"KO", "1", "2", TRAINING_VECTOR, "3", "1024",
+                    "C:/_db/nets1024_vega2/CAT_network2.txt,C:/_db/nets1024_vega2/GDXJ_network2.txt,C:/_db/nets1024_vega2/GS_network1.txt,C:/_db/nets1024_vega2/IBM_network2.txt,C:/_db/nets1024_vega2/JPM_network2.txt,C:/_db/nets1024_vega2/SHW_network2.txt,C:/_db/nets1024_vega2/SIL_network2.txt,C:/_db/nets1024_vega2/WMT_network2.txt",
+                    "C:/_db/nets1024_vega2/AAPL_network1.txt,C:/_db/nets1024_vega2/COIN_network1.txt,C:/_db/nets1024_vega2/CVX_network2.txt,C:/_db/nets1024_vega2/HON_network2.txt,C:/_db/nets1024_vega2/JNJ_network2.txt,C:/_db/nets1024_vega2/KO_network2.txt,C:/_db/nets1024_vega2/NNBR_network2.txt,C:/_db/nets1024_vega2/PG_network2.txt,C:/_db/nets1024_vega2/VZ_network2.txt"},
+            {"MCD", "2", "1", TRAINING_VECTOR, "3", "1024",
+                    "C:/_db/nets1024_vega2/CAT_network1.txt,C:/_db/nets1024_vega2/CAT_network2.txt,C:/_db/nets1024_vega2/GDXJ_network1.txt,C:/_db/nets1024_vega2/JNJ_network1.txt,C:/_db/nets1024_vega2/MPW_network2.txt,C:/_db/nets1024_vega2/NKE_network1.txt,C:/_db/nets1024_vega2/TRV_network1.txt",
+                    "C:/_db/nets1024_vega2/CRM_network2.txt,C:/_db/nets1024_vega2/MPW_network1.txt,C:/_db/nets1024_vega2/MSFT_network1.txt,C:/_db/nets1024_vega2/V_network1.txt"},
+            {"MMM", "2", "1", TRAINING_VECTOR, "3", "1024",
+                    "C:/_db/nets1024_vega2/AAPL_network2.txt,C:/_db/nets1024_vega2/HD_network2.txt,C:/_db/nets1024_vega2/HON_network2.txt,C:/_db/nets1024_vega2/IBM_network2.txt,C:/_db/nets1024_vega2/MSFT_network1.txt,C:/_db/nets1024_vega2/PG_network1.txt,C:/_db/nets1024_vega2/PLUG_network2.txt,C:/_db/nets1024_vega2/SHW_network2.txt,C:/_db/nets1024_vega2/TRV_network2.txt,C:/_db/nets1024_vega2/V_network2.txt,C:/_db/nets1024_vega2/WMT_network2.txt",
+                    "C:/_db/nets1024_vega2/COIN_network1.txt,C:/_db/nets1024_vega2/CRM_network2.txt,C:/_db/nets1024_vega2/GDXJ_network1.txt,C:/_db/nets1024_vega2/GS_network1.txt,C:/_db/nets1024_vega2/MPW_network2.txt,C:/_db/nets1024_vega2/MRK_network2.txt,C:/_db/nets1024_vega2/NNBR_network1.txt,C:/_db/nets1024_vega2/SIL_network1.txt,C:/_db/nets1024_vega2/UNH_network2.txt"},
+            {"MPW", "4", "6", TRAINING_VECTOR, "3", "1024",
+                    "C:/_db/nets1024_vega2/COIN_network2.txt,C:/_db/nets1024_vega2/CVX_network1.txt,C:/_db/nets1024_vega2/JNJ_network1.txt,C:/_db/nets1024_vega2/MCD_network2.txt,C:/_db/nets1024_vega2/MPW_network1.txt,C:/_db/nets1024_vega2/MSFT_network2.txt,C:/_db/nets1024_vega2/NVDA_network2.txt,C:/_db/nets1024_vega2/PLUG_network1.txt",
+                    "C:/_db/nets1024_vega2/AMGN_network2.txt,C:/_db/nets1024_vega2/DIS_network1.txt,C:/_db/nets1024_vega2/HD_network2.txt,C:/_db/nets1024_vega2/IBM_network1.txt,C:/_db/nets1024_vega2/KO_network2.txt,C:/_db/nets1024_vega2/MMM_network2.txt,C:/_db/nets1024_vega2/MRK_network2.txt,C:/_db/nets1024_vega2/NNBR_network1.txt,C:/_db/nets1024_vega2/PG_network2.txt,C:/_db/nets1024_vega2/PLUG_network2.txt,C:/_db/nets1024_vega2/SIL_network1.txt,C:/_db/nets1024_vega2/SIL_network2.txt"},
+            {"MRK", "1", "1", TRAINING_VECTOR, "3", "1024",
+                    "C:/_db/nets1024_vega2/AAPL_network1.txt,C:/_db/nets1024_vega2/BA_network1.txt,C:/_db/nets1024_vega2/COIN_network2.txt,C:/_db/nets1024_vega2/CRM_network1.txt,C:/_db/nets1024_vega2/GDXJ_network2.txt,C:/_db/nets1024_vega2/JNJ_network2.txt,C:/_db/nets1024_vega2/KO_network2.txt,C:/_db/nets1024_vega2/MCD_network2.txt,C:/_db/nets1024_vega2/NVDA_network2.txt,C:/_db/nets1024_vega2/SHW_network1.txt,C:/_db/nets1024_vega2/V_network2.txt",
+                    "C:/_db/nets1024_vega2/AMGN_network2.txt,C:/_db/nets1024_vega2/MPW_network2.txt,C:/_db/nets1024_vega2/NVDA_network1.txt,C:/_db/nets1024_vega2/SIL_network2.txt,C:/_db/nets1024_vega2/TRV_network2.txt,C:/_db/nets1024_vega2/WMT_network2.txt"},
+            {"MSFT", "2", "1", TRAINING_VECTOR, "3", "1024",
+                    "C:/_db/nets1024_vega2/AAPL_network2.txt,C:/_db/nets1024_vega2/AMZN_network2.txt,C:/_db/nets1024_vega2/AXP_network2.txt,C:/_db/nets1024_vega2/CAT_network1.txt,C:/_db/nets1024_vega2/CVX_network1.txt,C:/_db/nets1024_vega2/JNJ_network1.txt,C:/_db/nets1024_vega2/TRV_network2.txt",
+                    "C:/_db/nets1024_vega2/COIN_network1.txt,C:/_db/nets1024_vega2/DIS_network1.txt,C:/_db/nets1024_vega2/HON_network1.txt,C:/_db/nets1024_vega2/NVDA_network2.txt"},
+            {"MSTR", "2", "2", TRAINING_VECTOR, "3", "1024",
+                    "C:/_db/nets1024_vega2/BA_network1.txt,C:/_db/nets1024_vega2/COIN_network2.txt,C:/_db/nets1024_vega2/CRM_network1.txt,C:/_db/nets1024_vega2/SHW_network2.txt",
+                    "C:/_db/nets1024_vega2/COIN_network1.txt,C:/_db/nets1024_vega2/NNBR_network1.txt,C:/_db/nets1024_vega2/TRV_network1.txt"},
+            {"NKE", "2", "1", TRAINING_VECTOR, "3", "1024",
+                    "C:/_db/nets1024_vega2/AMZN_network2.txt,C:/_db/nets1024_vega2/COIN_network2.txt,C:/_db/nets1024_vega2/HD_network1.txt,C:/_db/nets1024_vega2/MCD_network2.txt,C:/_db/nets1024_vega2/SHW_network1.txt,C:/_db/nets1024_vega2/TRV_network2.txt",
+                    "C:/_db/nets1024_vega2/AAPL_network2.txt,C:/_db/nets1024_vega2/AXP_network2.txt,C:/_db/nets1024_vega2/BA_network2.txt,C:/_db/nets1024_vega2/MPW_network1.txt"},
+            {"NNBR", "2", "2", TRAINING_VECTOR, "3", "1024",
+                    "C:/_db/nets1024_vega2/CAT_network1.txt,C:/_db/nets1024_vega2/COIN_network1.txt,C:/_db/nets1024_vega2/SHW_network1.txt,C:/_db/nets1024_vega2/WMT_network2.txt",
+                    "C:/_db/nets1024_vega2/AAPL_network1.txt,C:/_db/nets1024_vega2/MCD_network2.txt,C:/_db/nets1024_vega2/MMM_network1.txt,C:/_db/nets1024_vega2/MMM_network2.txt"},
+            {"NVDA", "1", "1", TRAINING_VECTOR, "3", "1024",
+                    "C:/_db/nets1024_vega2/COIN_network2.txt,C:/_db/nets1024_vega2/CSCO_network2.txt,C:/_db/nets1024_vega2/NVDA_network1.txt",
+                    "C:/_db/nets1024_vega2/WMT_network2.txt"},
+            {"PG", "1", "1", TRAINING_VECTOR, "3", "1024",
+                    "C:/_db/nets1024_vega2/AMGN_network1.txt,C:/_db/nets1024_vega2/AXP_network1.txt,C:/_db/nets1024_vega2/BA_network1.txt,C:/_db/nets1024_vega2/BA_network2.txt,C:/_db/nets1024_vega2/NVDA_network1.txt",
+                    "C:/_db/nets1024_vega2/AMZN_network1.txt,C:/_db/nets1024_vega2/CRM_network1.txt,C:/_db/nets1024_vega2/MCD_network2.txt,C:/_db/nets1024_vega2/MSFT_network2.txt,C:/_db/nets1024_vega2/V_network1.txt"},
+            {"PLUG", "4", "3", TRAINING_VECTOR, "3", "1024",
+                    "C:/_db/nets1024_vega2/GDXJ_network2.txt,C:/_db/nets1024_vega2/MMM_network2.txt,C:/_db/nets1024_vega2/NVDA_network1.txt,C:/_db/nets1024_vega2/PLUG_network1.txt,C:/_db/nets1024_vega2/UNH_network1.txt",
+                    "C:/_db/nets1024_vega2/COIN_network1.txt,C:/_db/nets1024_vega2/JPM_network1.txt,C:/_db/nets1024_vega2/NNBR_network2.txt,C:/_db/nets1024_vega2/VZ_network2.txt"},
+            {"SHW", "2", "2", TRAINING_VECTOR, "3", "1024",
+                    "C:/_db/nets1024_vega2/AAPL_network1.txt,C:/_db/nets1024_vega2/AMZN_network1.txt,C:/_db/nets1024_vega2/AMZN_network2.txt,C:/_db/nets1024_vega2/AXP_network2.txt,C:/_db/nets1024_vega2/HD_network1.txt,C:/_db/nets1024_vega2/MCD_network2.txt,C:/_db/nets1024_vega2/SIL_network1.txt,C:/_db/nets1024_vega2/V_network1.txt,C:/_db/nets1024_vega2/WMT_network1.txt",
+                    "C:/_db/nets1024_vega2/AMGN_network1.txt,C:/_db/nets1024_vega2/COIN_network2.txt,C:/_db/nets1024_vega2/HON_network2.txt,C:/_db/nets1024_vega2/JPM_network1.txt,C:/_db/nets1024_vega2/MSFT_network1.txt,C:/_db/nets1024_vega2/NNBR_network1.txt,C:/_db/nets1024_vega2/NVDA_network1.txt,C:/_db/nets1024_vega2/SHW_network2.txt,C:/_db/nets1024_vega2/UNH_network1.txt"},
+            {"SIL", "2", "4", TRAINING_VECTOR, "3", "1024",
+                    "C:/_db/nets1024_vega2/AXP_network2.txt,C:/_db/nets1024_vega2/HD_network1.txt,C:/_db/nets1024_vega2/HON_network1.txt,C:/_db/nets1024_vega2/MCD_network2.txt,C:/_db/nets1024_vega2/MPW_network2.txt,C:/_db/nets1024_vega2/MRK_network2.txt,C:/_db/nets1024_vega2/PLUG_network1.txt,C:/_db/nets1024_vega2/SHW_network2.txt",
+                    "C:/_db/nets1024_vega2/AMGN_network1.txt,C:/_db/nets1024_vega2/AMGN_network2.txt,C:/_db/nets1024_vega2/BA_network2.txt,C:/_db/nets1024_vega2/COIN_network1.txt,C:/_db/nets1024_vega2/DIS_network2.txt,C:/_db/nets1024_vega2/GDXJ_network2.txt,C:/_db/nets1024_vega2/KO_network2.txt,C:/_db/nets1024_vega2/MCD_network1.txt,C:/_db/nets1024_vega2/NKE_network2.txt,C:/_db/nets1024_vega2/PLUG_network2.txt,C:/_db/nets1024_vega2/SIL_network2.txt"},
+            {"TRV", "2", "1", TRAINING_VECTOR, "3", "1024",
+                    "C:/_db/nets1024_vega2/AAPL_network2.txt,C:/_db/nets1024_vega2/AMGN_network1.txt,C:/_db/nets1024_vega2/CRM_network1.txt,C:/_db/nets1024_vega2/CRM_network2.txt,C:/_db/nets1024_vega2/GS_network1.txt,C:/_db/nets1024_vega2/KO_network2.txt,C:/_db/nets1024_vega2/MSFT_network1.txt,C:/_db/nets1024_vega2/SHW_network2.txt,C:/_db/nets1024_vega2/WMT_network2.txt",
+                    "C:/_db/nets1024_vega2/COIN_network1.txt,C:/_db/nets1024_vega2/MCD_network2.txt,C:/_db/nets1024_vega2/NVDA_network2.txt"},
+            {"UNH", "2", "2", TRAINING_VECTOR, "3", "1024",
+                    "C:/_db/nets1024_vega2/BA_network1.txt,C:/_db/nets1024_vega2/BA_network2.txt,C:/_db/nets1024_vega2/DIS_network1.txt,C:/_db/nets1024_vega2/IBM_network2.txt,C:/_db/nets1024_vega2/JNJ_network1.txt",
+                    "C:/_db/nets1024_vega2/CSCO_network2.txt,C:/_db/nets1024_vega2/KO_network1.txt,C:/_db/nets1024_vega2/NKE_network2.txt,C:/_db/nets1024_vega2/SHW_network2.txt,C:/_db/nets1024_vega2/SIL_network1.txt"},
+            {"V", "1", "5", TRAINING_VECTOR, "3", "1024",
+                    "C:/_db/nets1024_vega2/JNJ_network2.txt,C:/_db/nets1024_vega2/KO_network2.txt,C:/_db/nets1024_vega2/MRK_network2.txt,C:/_db/nets1024_vega2/SIL_network1.txt",
+                    "C:/_db/nets1024_vega2/AAPL_network1.txt,C:/_db/nets1024_vega2/AMGN_network1.txt,C:/_db/nets1024_vega2/AMZN_network2.txt,C:/_db/nets1024_vega2/AXP_network1.txt,C:/_db/nets1024_vega2/COIN_network1.txt,C:/_db/nets1024_vega2/HON_network2.txt,C:/_db/nets1024_vega2/MPW_network2.txt,C:/_db/nets1024_vega2/MSFT_network2.txt,C:/_db/nets1024_vega2/NNBR_network2.txt,C:/_db/nets1024_vega2/NVDA_network2.txt,C:/_db/nets1024_vega2/PG_network2.txt,C:/_db/nets1024_vega2/PLUG_network1.txt,C:/_db/nets1024_vega2/SIL_network2.txt,C:/_db/nets1024_vega2/V_network2.txt"},
+            {"VZ", "1", "1", TRAINING_VECTOR, "3", "1024",
+                    "C:/_db/nets1024_vega2/COIN_network1.txt,C:/_db/nets1024_vega2/IBM_network2.txt,C:/_db/nets1024_vega2/UNH_network2.txt,C:/_db/nets1024_vega2/V_network1.txt,C:/_db/nets1024_vega2/V_network2.txt",
+                    "C:/_db/nets1024_vega2/GS_network1.txt,C:/_db/nets1024_vega2/MCD_network2.txt,C:/_db/nets1024_vega2/NVDA_network2.txt,C:/_db/nets1024_vega2/PLUG_network1.txt,C:/_db/nets1024_vega2/VZ_network2.txt"},
+            {"WMT", "3", "4", TRAINING_VECTOR, "3", "1024",
+                    "C:/_db/nets1024_vega2/AMGN_network1.txt,C:/_db/nets1024_vega2/AMZN_network1.txt,C:/_db/nets1024_vega2/CVX_network2.txt,C:/_db/nets1024_vega2/HD_network2.txt,C:/_db/nets1024_vega2/JNJ_network1.txt,C:/_db/nets1024_vega2/JNJ_network2.txt,C:/_db/nets1024_vega2/JPM_network2.txt,C:/_db/nets1024_vega2/KO_network2.txt,C:/_db/nets1024_vega2/SHW_network2.txt,C:/_db/nets1024_vega2/SIL_network2.txt",
+                    "C:/_db/nets1024_vega2/AAPL_network1.txt,C:/_db/nets1024_vega2/AMGN_network2.txt,C:/_db/nets1024_vega2/AXP_network1.txt,C:/_db/nets1024_vega2/CRM_network2.txt,C:/_db/nets1024_vega2/GDXJ_network2.txt,C:/_db/nets1024_vega2/HON_network2.txt,C:/_db/nets1024_vega2/VZ_network2.txt,C:/_db/nets1024_vega2/WMT_network2.txt"}
+    };
+
     final static String[][] MODELS_64vega1 = {
             {"AAPL", "1", "1", TRAINING_VECTOR, "3", "64",
                     "C:/_db/nets64_vega1/GS_network2.txt,C:/_db/nets64_vega1/KO_network2.txt",
@@ -418,4 +558,6 @@ public class Predictions {
                     "C:/_db/nets603_twc3/AMGN_network2.txt,C:/_db/nets603_twc3/CAT_network2.txt,C:/_db/nets603_twc3/COIN_network1.txt,C:/_db/nets603_twc3/GDXJ_network2.txt,C:/_db/nets603_twc3/V_network2.txt",
                     "C:/_db/nets603_twc3/MSFT_network2.txt"},
     };
+
+
 }

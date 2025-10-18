@@ -41,7 +41,7 @@ public class Main {
 
     //debugging:
     static final String ITERATIONS = "10000";
-    static final String NEURONS = "1024";
+    static final String NEURONS = "256"; //"1024";
     static final String KPIS = "c:/_db/kpis";
     static final String NETS = "c:/_db/nets64_vega1";
     static final String OUTS = "c:/_arcturus/2025-10-13a";
@@ -63,6 +63,10 @@ public class Main {
             //"CRM,BA,AMZN,HON,JNJ,NVDA,MMM,CVX,PG,DIS,MRK,CSCO",
             //"NKE,KO,VZ,COIN,SIL,MPW,PLUG,NNBR,GDXJ,MSTR"
             "2016,2017,2018,2019,2022,2023",
+            VECTOR, HISTORY, ITERATIONS, NEURONS};
+    static final String[] option2b = { "2b", KPIS, NETS, OUTS,
+            "WMT,GS,MSFT",
+            "1995,1996,1997,1998,1999,2000,2001,2002,2003,2004,2005,2006,2007,2008,2009,2010,2011,2012,2013,2014,2015,2016,2017,2018,2019,2020,2021,2022,2023,2024,2025",
             VECTOR, HISTORY, ITERATIONS, NEURONS};
     /*
     {   methodId: "TRAIN_MODEL5",
@@ -88,7 +92,7 @@ public class Main {
             "WMT,GS,MSFT,CAT,HD,MCD,CRM,BA,JNJ,PG,DIS,MRK,NKE,KO,VZ",
             "2021,2022,2023,2024",
             VECTOR, HISTORY, NEURONS};
-    static final String[] option5 = { "5", KPIS, "C:/_db/nets1024_vega2/", "C:/_arcturus/2025-10-14-vega2/",
+    static final String[] option5 = { "5", KPIS, "C:/_db/nets256_vega3/", "C:/_arcturus/2025-10-15-vega3/",
             "X","2021,2022,2023,2024", VECTOR, HISTORY, NEURONS};
     /*
     {   methodId: "OPTIMIZE5",
@@ -177,7 +181,9 @@ java -jar ./diesel/Diesel42.2.jar 2 ./kpis ./nets ./out1 "GDXJ,MSTR" "2016,2017,
     public static void main(String[] args) {
 
         //debugging:
-        args = option5;
+        args = option2b;
+        String MDB = "C:/_db/models/optimizer.txt";
+
 
         if( args.length < 5 ) {
             System.out.println(MENU);
@@ -198,6 +204,13 @@ java -jar ./diesel/Diesel42.2.jar 2 ./kpis ./nets ./out1 "GDXJ,MSTR" "2016,2017,
             int iterations = Integer.parseInt(args[8]);
             int neurons = Integer.parseInt(args[9]);
             for( String t : tkr ) trainTicker( t, KPI, NET, OUT, periods, config, multiplier, iterations, neurons );
+        }else if( task.contentEquals("2b") ){
+            String[] periods = args[5].split(",");
+            String[] config = args[6].split(",");
+            int multiplier = Integer.parseInt(args[7]);
+            int iterations = Integer.parseInt(args[8]);
+            int neurons = Integer.parseInt(args[9]);
+            for( String t : dji30c ) trainingSet( t, KPI, NET, OUT, periods, config, multiplier, iterations, neurons );
         }else if( task.contentEquals("3") ){
             String[] tkrSet = args[4].split(",");
             String[] models = args[5].split(",");
@@ -219,7 +232,11 @@ java -jar ./diesel/Diesel42.2.jar 2 ./kpis ./nets ./out1 "GDXJ,MSTR" "2016,2017,
             String[] config = args[6].split(",");
             int history =  Integer.parseInt(args[7]);
             int neurons = Integer.parseInt(args[8]);
-            for( String t : dji30c ) optimizeModelsFromFolder( t, KPI, OUT, modelFolder, periods, config, history, neurons );
+            StringBuilder mdb = new StringBuilder();
+            for( String t : dji30c ) optimizeModelsFromFolder( mdb, t, KPI, OUT, modelFolder, periods, config, history, neurons );
+            //optimizeModelsFromFolder( mdb,"PLUG", KPI, OUT, modelFolder, periods, config, history, neurons );
+            //optimizeModelsFromFolder( mdb,"SIL", KPI, OUT, modelFolder, periods, config, history, neurons );
+            Utilities.writeFile(MDB,mdb);
         }else if( task.contentEquals("6") ){
 //            6 - backtest models. usage: java -jar Diesel.jar 6 <2=symbol> <3=buyModels> <4=sellModels> <5=buyThreshold> <6=sellThreshold> <7=config> <8=mult> <9=neurons>
                     String tickerId = args[1];
@@ -253,7 +270,7 @@ java -jar ./diesel/Diesel42.2.jar 2 ./kpis ./nets ./out1 "GDXJ,MSTR" "2016,2017,
 
     static String[] dji30c = {"WMT","GS","MSFT","CAT","HD","UNH","V","SHW","AXP","JPM",
             "MCD","AMGN","IBM","TRV","AAPL","CRM","BA","AMZN","HON","JNJ","NVDA","MMM",
-            "CVX","PG","DIS","MRK","CSCO","NKE","KO","VZ","COIN","NNBR","MPW", "MSTR", "GDXJ", "NVDA", "PLUG" };
+            "CVX","PG","DIS","MRK","CSCO","NKE","KO","VZ","COIN","NNBR","MPW", "MSTR", "GDXJ", "NVDA", "PLUG"/*, "SIL"*/ };
 
     public static void loadKPI( String tkr, String KPI, String OUT ){
         VectorsProcessor vp = new VectorsProcessor();
@@ -395,6 +412,32 @@ mDir      , stdev, 100.03080758, 100.0308, 100.0308, 100.0308, 100.0308, 100.030
 
 
  */
+public static void trainingSet(String tkr, String DB, String NET, String OUT, String[] filters, String[] params, int multiplier, int iterationsNum, int neurons) {
+    // get scaling factors
+    TrainingProcessor tp = new TrainingProcessor();
+    //String[] filters = {"2017", "2018", "2019", "2021", "2022", "2023"};
+    //String[] params =  {"cmf", "obv", "willR","kcMPct", "kcUPct", "macdv", "macdvSignal"};
+    //        String[] params = {"cmf", "macd", "macdSignal", "obv", "pvo", "mfi", "willR","kcLPct", "kcMPct", "kcUPct", "macdv", "macdvSignal"};
+    /*for (String tkr : dji30a)*/
+
+        String kpiFile = DB + tkr + "_kpis.txt";
+        String outFile1 = OUT + tkr + "_out1.txt";
+        String outFile2 = OUT + tkr + "_out2.txt";
+        String outFile3 = OUT + tkr + "_out3.txt";
+        String outFile4 = OUT + tkr + "_out4.txt";
+        String tsFile = "c:/_db/ts/"+tkr+"_ts_72.txt";
+        String netFile1 = NET + tkr + "_network1.txt";
+        String netFile2 = NET + tkr + "_network2.txt";
+
+        String[] _params = ("closeMA200,closeMA200xo,closeMA50,closeMA50xo,"+
+        "cmf,macd,macdSignal,atrDaily,atr,atrPct,mfi,pvo,obv,willR,"+
+        "kcLwr,kcMid,KcUpr,kcLPct,kcMPct,kcUPct,"+
+        "macdv,macdvSignal,mPhase,mDir").split(        ",");//24 elements
+
+        tp.loadDataSet(kpiFile, filters, params, 3/*multiplier*/);
+        System.out.println("Writing training set..."+tsFile);
+        tp.writeTrainingSet(tsFile);
+    }
 
     public static void trainTicker(String tkr, String DB, String NET, String OUT, String[] filters, String[] params, int multiplier, int iterationsNum, int neurons) {
         // get scaling factors
@@ -706,7 +749,7 @@ mDir      , stdev, 100.03080758, 100.0308, 100.0308, 100.0308, 100.0308, 100.030
         mx.startOptimization(bp);
 
         //mx.runOptimizer1(bp);
-        mx.runOptimizer2(bp);
+        mx.runOptimizer2(bp, sb);
        //System.out.print(sb);
 
         sb.append("\n\nFINAL CONFIG:\n");
@@ -746,7 +789,7 @@ mDir      , stdev, 100.03080758, 100.0308, 100.0308, 100.0308, 100.0308, 100.030
 
     }
 
-    private static void optimizeModelsFromFolder(String tickerId, String DB, String OUT, String modelFolder, String[] filters, String[] params, int multiplier, int neurons) {
+    private static void optimizeModelsFromFolder(StringBuilder mdb,String tickerId, String DB, String OUT, String modelFolder, String[] filters, String[] params, int multiplier, int neurons) {
         String kpiFile = DB + tickerId + "_kpis.txt";
         String outFile1 = OUT + String.format("%s_%s_opt_signals.txt", tickerId, Utilities.getTimeTag() );
         String outFile2 = OUT + String.format("%s_%s_out2.txt", tickerId, Utilities.getTimeTag() );
@@ -778,7 +821,7 @@ mDir      , stdev, 100.03080758, 100.0308, 100.0308, 100.0308, 100.0308, 100.030
         //Utilities.writeFile(outFile1, sb1);
 
         //mx.runOptimizer1(bp);
-        mx.runOptimizer2(bp);
+        mx.runOptimizer2(bp,sb3);
         //System.out.print(sb);
 
         /*sb2.append("\n\nFINAL CONFIG:\n");
@@ -818,7 +861,7 @@ mDir      , stdev, 100.03080758, 100.0308, 100.0308, 100.0308, 100.0308, 100.030
         System.out.println("\nMODEL COFNIG:\n"+modelConfig.toString());
         sb3.append( modelConfig.toString() );
         Utilities.writeFile(outFile3, sb3);
-
+        mdb.append( modelConfig ).append("\n");
     }
 
     private static void backtestModels(String tickerId, String KPIS, String OUT, String[] buyModels, String[] sellModels, int buyThreshold, int sellThreshold, String[] periods, String[] config, int multiplier, int neurons) {

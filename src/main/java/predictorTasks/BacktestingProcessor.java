@@ -5,6 +5,8 @@ import optimizationTasks.ModelMixer;
 import org.bson.Document;
 import trainingTasks.TrainingProcessor;
 
+import java.util.Arrays;
+
 public class BacktestingProcessor {
 
     public StockDataSet stockData;
@@ -17,8 +19,8 @@ public class BacktestingProcessor {
     String[] signal;
     double[] price;
     int[] qty;
-    double[] profit;
-    double[] gain;
+    public double[] profit;
+    public double[] gain;
     int[] transactions;
     double[] value;
 
@@ -68,7 +70,7 @@ public class BacktestingProcessor {
 
         for( int d = 0; d<totalDays-1; d++ ){
             message[d] = "";
-            signal[d]=" ";
+            signal[d]="-";
             date[d] = stockData.dates[d];
             price[d] = stockData.price[d];
             boolean buySignal = buySignals[d]=='1' || buySignals[d]=='B';
@@ -110,6 +112,12 @@ public class BacktestingProcessor {
             transactions[d] = trades;
             value[d] = position*stockData.price[d]+totalProfit;
         }
+        boolean buySignal = buySignals[totalDays-1]=='1' || buySignals[totalDays-1]=='B';
+        boolean sellSignal = sellSignals[totalDays-1]=='1' || sellSignals[totalDays-1]=='S';
+        signal[totalDays-1]="-";
+        if( buySignal && sellSignal ){ signal[totalDays-1]="X";}
+        if( buySignal && !sellSignal ){ signal[totalDays-1]="B";}
+        if( !buySignal && sellSignal ){ signal[totalDays-1]="S";}
 
         double winRate = trades>0 ? winTrades*100.0/trades : 0;
         double avgWin = winTrades>0 ? totalWinGain/winTrades : 0;
@@ -117,16 +125,32 @@ public class BacktestingProcessor {
         double rrRatio = avgLoss!=0 ? avgWin / avgLoss : 0;
         double avgGain = trades>0 ? totalGain/trades : 0;
 
-        Document results = new Document().append(scenario,scenario)
+        char[] last20days = new char[20];
+        double[] last20daysPrice = new double[20];
+        for( int d = 0; d<20; d++ ){
+            last20days[d] = signal[totalDays-20+d].charAt(0);
+            last20daysPrice[d] = price[totalDays-20+d];
+        }
+
+        Document results = new Document().append("scenario",scenario)
+                .append("ticker",tickerId)
                 .append("winRate",winRate).append("rrRatio", rrRatio )
                 .append("winTrades", winTrades).append("winAmount",totalWinAmount).append("avgWin", avgWin )
                 .append("lossTrades", lossTrades).append("lossAmount",totalLossAmount).append("avgLoss", avgLoss )
                 .append("trades", trades).append("totalProfit",totalProfit).append("totalGain", totalGain).append("avgGain",avgGain)
                 .append("csv",
-                        String.format("[%s, %.2f, %.2f, %d, %.2f, %.2f, %d, %.2f, %.2f, %d, %.2f, %.2f, %.2f]",
-                                tickerId, winRate, rrRatio, winTrades, totalWinAmount, avgWin,
-                                lossTrades, totalLossAmount, avgLoss, trades, totalProfit, totalGain, avgGain) );
-        //String buf = results.toJson();
+                        String.format("[%.2f, %.2f, %d, %.2f, %.2f, %d, %.2f, %.2f, %d, %.2f, %.2f, %.2f]",
+                                winRate, rrRatio, winTrades, totalWinAmount, avgWin,
+                                lossTrades, totalLossAmount, avgLoss, trades, totalProfit, totalGain, avgGain) )
+                .append("excel",
+                String.format("[,%s,%.2f, %.2f, %d, %.2f, %.2f, %d, %.2f, %.2f, %d, %.2f, %.2f, %.2f,]",
+                        tickerId, winRate, rrRatio, winTrades, totalWinAmount, avgWin,
+                        lossTrades, totalLossAmount, avgLoss, trades, totalProfit, totalGain, avgGain) )
+                .append("signal", String.join("",signal) )
+                .append("message", new String(last20days) )
+                .append("priceHistory", Arrays.toString(last20daysPrice) );
+
+                //String buf = results.toJson();
        // System.out.println("Results:");
        // System.out.println(buf);
 

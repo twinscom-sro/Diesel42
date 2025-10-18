@@ -305,7 +305,7 @@ public class ModelMixer {
   */
 
     static String TEMPLATE = """
-{"%s", "%d", "%d", TRAINING_VECTOR, "3", %d, 
+{"%s", "%d", "%d", TRAINING_VECTOR, "3", "%d", 
      "%s",
      "%s"},
 """;
@@ -428,30 +428,44 @@ public class ModelMixer {
 
     class OptimumVector {
         double gain;
+        int epoch;
         int buyThreshold;
         int sellThreshold;
         char[] vector;
+        double[] profit;
+        double[] gains;
 
-        public OptimumVector(double _gain, int _buyThreshold, int _sellThreshold, char[] _vector, int _num) {
+        public OptimumVector(double _gain, int _epoch, int _buyThreshold, int _sellThreshold, char[] _vector, int _num) {
             gain = _gain;
+            epoch = _epoch;
             buyThreshold = _buyThreshold;
             sellThreshold = _sellThreshold;
             vector = new char[_num];
             System.arraycopy(_vector, 0, vector, 0, _num);
         }
 
+        public void logProfit( double[] _profit, double[] _gains ){
+            profit = new double[_profit.length];
+            gains = new double[_profit.length];
+            for (int i = 0; i < _profit.length; i++) {
+                profit[i] = _profit[i];
+                gains[i] = _gains[i];
+            }
+        }
+
         public String format() {
             List<String> items = new ArrayList<>();
             for (int i = 0; i < numModels; i++) {
-                if( vector[i] == 'B' ) items.add( modelName[i] );
-                if( vector[i] == 'S' ) items.add( modelName[i] );
+                if( vector[i] == 'B' ) items.add( "B("+modelName[i]+")" );
+                if( vector[i] == 'S' ) items.add( "S("+modelName[i]+")" );
             }
-            return String.format("VECTOR { gain: %.2f, buyThr: %d, sellThr: %d, models:%s, vector:%s\n",
-                    gain, buyThreshold, sellThreshold, Arrays.toString(items.toArray()), Arrays.toString(vector) );
+            return String.format("VECTOR: { gain: %.2f, epoch: %d, buyThr: %d, sellThr: %d, models:%s, \nvector:%s, \nprofit:%s\n gains:%s }\n",
+                    gain, epoch, buyThreshold, sellThreshold, Arrays.toString(items.toArray()),
+                    Arrays.toString(vector), Arrays.toString(profit), Arrays.toString(gains) );
         }
     }
 
-    public void runOptimizer2(BacktestingProcessor bp) {
+    public void runOptimizer2(BacktestingProcessor bp, StringBuilder sb) {
         List<OptimumVector> optimumVectors = new ArrayList<>();
         int epoch = 0;
         int ageOfLastChange = 0;
@@ -470,7 +484,9 @@ public class ModelMixer {
             if (currentGain > maxGain) {
                 maxGain = currentGain;
                 System.out.format("New maximum found gain=%.2f, (%d,%d) vector=[%s]\n", maxGain, buyThreshold, sellThreshold, Arrays.toString(includeVector));
-                optimumVectors.add( new OptimumVector(currentGain,buyThreshold,sellThreshold,includeVector,numModels) );
+                OptimumVector newOpt = new OptimumVector(currentGain, epoch, buyThreshold,sellThreshold,includeVector,numModels);
+                newOpt.logProfit( bp.profit, bp.gain );
+                optimumVectors.add(newOpt);
             }
 
             if( epoch%50 == 0 ){
@@ -526,8 +542,12 @@ public class ModelMixer {
         System.out.format("Ended with age=%d\n", ageOfLastChange);
         System.out.format("Final maximum gain=%.2f, %s\n", currentGain, Arrays.toString(includeVector));
         System.out.println("\nOPTIMUM VECTORS:\n");
+        sb.append( String.format("Ended with age=%d\n", ageOfLastChange));
+        sb.append( String.format("Final maximum gain=%.2f, %s\n", currentGain, Arrays.toString(includeVector)) );
+        sb.append( "\nOPTIMUM VECTORS:\n" );
         for (OptimumVector optimumVector : optimumVectors) {
             System.out.println( optimumVector.format() );
+            sb.append( optimumVector.format() );
         }
         int iMax=-1;
         double gMax=0;
