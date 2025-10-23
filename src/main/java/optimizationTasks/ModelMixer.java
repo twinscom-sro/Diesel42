@@ -1,10 +1,17 @@
 package optimizationTasks;
 
 import environment.Utilities;
+import forecast2.Forecast;
 import neural.DeepLayer;
 import org.bson.Document;
+import org.deeplearning4j.nn.multilayer.MultiLayerNetwork;
+import org.nd4j.linalg.api.ndarray.INDArray;
+import org.nd4j.linalg.dataset.DataSet;
+import org.nd4j.linalg.indexing.NDArrayIndex;
 import predictorTasks.BacktestingProcessor;
 
+import java.io.File;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -374,6 +381,89 @@ public class ModelMixer {
         //Utilities.writeFile(resultsFile, results);
     }
 
+    public void loadPredictions2(BacktestingProcessor bp, int pos1, int pos2, String netFile) {
+
+        MultiLayerNetwork net = null;
+        try {
+            net = MultiLayerNetwork.load(new File(netFile), true);
+
+        Forecast f = new Forecast(bp.totalDays, 120);
+        DataSet ds = f.loadDataSet( bp );
+
+        INDArray outputs = net.output( ds.getFeatures() );
+        for (int d = 0; d < totalDays; d++) {
+            double y1 = outputs.get(NDArrayIndex.point(d), NDArrayIndex.all()).getDouble(1);
+            double y2 = outputs.get(NDArrayIndex.point(d), NDArrayIndex.all()).getDouble(2);
+            signals[pos1 + 2][d] = y1 > 0.5 ? '1' : '0';
+            signals[pos2 + 2][d] = y2 > 0.5 ? '1' : '0';
+        }
+        modelFile[pos1] = netFile;
+        modelName[pos1] = netFile+".B";
+        modelFile[pos2] = netFile;
+        modelName[pos2] = netFile+".S";
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+
+/*        Evaluation eval3a = new Evaluation();
+        eval3a.eval(ds.getLabels(), output1);
+        //System.out.println(eval3a.stats());
+        double f1 = eval3a.f1();
+        System.out.format("f1(%d)=%.4f, b=[%.2f, %.2f], s=[%.2f, %.2f]\n", col, f1, eval3a.precision(1),eval3a.recall(1), eval3a.precision(2),eval3a.recall(2));
+*/
+
+
+    }
+
+
+    public void loadPredictions3(DataSet ds, int pos, String netFile, int idSignal ) {
+
+        MultiLayerNetwork net = null;
+        try {
+            net = MultiLayerNetwork.load(new File(netFile), true);
+
+            INDArray outputs = net.output( ds.getFeatures() );
+            for (int d = 0; d < totalDays; d++) {
+                double y1 = outputs.get(NDArrayIndex.point(d), NDArrayIndex.all()).getDouble(idSignal);
+                signals[pos + 2][d] = y1 > 0.5 ? '1' : '0';
+            }
+            modelFile[pos] = netFile;
+            modelName[pos] = netFile+( idSignal==1 ? ".B" : ".S");
+
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+
+    }
+
+    public void recalculateSignals_Majority(int _models) {
+        int maxBuySignals = 0;
+        int maxSellSignals = 0;
+        for (int d = 0; d < totalDays; d++) {
+            int sumBuy = 0;
+            int sumSell = 0;
+            for (int i = 0; i < _models; i++) {
+                if (signals[i + 2][d] == '1' ) sumBuy++;
+                if (signals[i+ _models + 2][d] == '1' ) sumSell++;
+            }
+            if (sumBuy > maxBuySignals) maxBuySignals = sumBuy;
+            if (sumSell > maxSellSignals) maxSellSignals = sumSell;
+        }
+
+        buyThreshold = 2;//maxBuySignals * 1 / 5;
+        sellThreshold = 2; //maxSellSignals * 1 / 5;
+        for (int d = 0; d < totalDays; d++) {
+            int sumBuy = 0;
+            int sumSell = 0;
+            for (int i = 0; i < _models; i++) {
+                if (signals[i + 2][d] == '1' ) sumBuy++;
+                if (signals[i+ _models + 2][d] == '1' ) sumSell++;
+             }
+            signals[0][d] = (sumBuy >= buyThreshold) ? 'B' : '-';
+            signals[1][d] = (sumSell >= sellThreshold) ? 'S' : '-';
+        }
+    }
+
     /*   public void runOptimizer1(BacktestingProcessor bp) {
            boolean addBuy=true;
            int epoch=0;
@@ -471,7 +561,7 @@ public class ModelMixer {
         int ageOfLastChange = 0;
         double maxGain = 0;
         double currentGain = 0;
-        int maxEpoch = includeVector.length*10;
+        int maxEpoch = includeVector.length;
         //System.out.println("Max Epoch: " + maxEpoch);
         while (continueOptimization() && ageOfLastChange < 20) {
             recalculateSignals(includeVector, buyThreshold, sellThreshold);

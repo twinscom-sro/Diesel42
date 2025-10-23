@@ -1,13 +1,16 @@
 package deepLearning;
 
-import org.pytorch.IValue;
-import org.pytorch.Module;
-import org.pytorch.Tensor;
+
 
 import java.util.Arrays;
 
 public class App {
     public static void main(String[] args) {
+ /*
+        import org.pytorch.IValue;
+import org.pytorch.Module;
+import org.pytorch.Tensor;
+
         Module mod = Module.load("demo-model.pt1");
         Tensor data =
                 Tensor.fromBlob(
@@ -18,7 +21,7 @@ public class App {
         Tensor output = result.toTensor();
         System.out.println("shape: " + Arrays.toString(output.shape()));
         System.out.println("data: " + Arrays.toString(output.getDataAsFloatArray()));
-
+*/
         // Workaround for https://github.com/facebookincubator/fbjni/issues/25
         System.exit(0);
     }

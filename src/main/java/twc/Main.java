@@ -37,6 +37,8 @@ public class Main {
     4 - optimize models. usage: java -jar Diesel.jar 4 <kpi> <netw> <out> <tkr> "model1,model2,...." <period-filter> <config> <mult> 
     5 - optimize models. usage: java -jar Diesel.jar 5 <kpi> <netw-set> <out> <tkr> <model> <period-filter> <config> <mult>, optimize based on a directory of models
     6 - backtest models. usage: java -jar Diesel.jar 6 <2=symbol> <3=buyModels> <4=sellModels> <5=buyThreshold> <6=sellThreshold> <7=config> <8=mult> <9=neurons>
+    7 - backtest from model folder. usage: java -jar Diesel.jar 7 <kpi> <netw> <out> <tkr> <period-filter> <config> <multi> 
+    8 - optimize models from folder. usage: java -jar Diesel.jar 5 <kpi> <netw-set> <out> <tkr> <period-filter> <config> <mult>, optimize based on a directory of models
     """;
 
     //debugging:
@@ -47,6 +49,16 @@ public class Main {
     static final String OUTS = "c:/_arcturus/2025-10-13a";
     static final String VECTOR = "cmf,obv,willR,atrPct,kcMPct,kcUPct,macdv,macdvSignal";
     static final String HISTORY = "3";
+
+
+    static final String NEURONS2 = "4096"; //"1024";
+    static final String NETS2 = "c:/_db/nets_120";
+    static final String OUTS2 = "c:/_arcturus/2025-10-22a";
+    static final String VECTOR2 = "closeMA200,closeMA200xo,closeMA50,closeMA50xo,cmf,"+
+            "macd,macdSignal,atrDaily,atr,atrPct,mfi,pvo,obv,willR,kcLwr,kcMid,KcUpr,kcLPct,kcMPct,kcUPct," +
+            "macdv,macdvSignal,mPhase,mDir";
+    static final String HISTORY2 = "5";
+
 
     static final String[] option1 = { "1", KPIS, NETS, OUTS,
               "WMT,GS,MSFT,CAT,HD,UNH,V,SHW,AXP,JPM,MCD,AMGN,IBM,TRV,AAPL,CRM,BA,AMZN,HON,JNJ,NVDA,MMM,CVX,PG,DIS,MRK,CSCO,NKE,KO,VZ,COIN,SIL,MPW,PLUG,NNBR,GDXJ,MSTR" };
@@ -128,7 +140,12 @@ public class Main {
 
     static final String[] option6 = {"6", "CVX", KPIS+"\\", OUTS+"\\", String.join(",",CVX_buyComponents), String.join(",",CVX_sellComponents), "3", "1",
             "2024,2025", VECTOR, HISTORY, NEURONS };
-   /*
+
+    static final String[] option7 = {"7", KPIS, NETS2, OUTS2, "2024,2025", VECTOR2, HISTORY2, NEURONS2 };
+    static final String[] option8 = {"8", KPIS, NETS2, OUTS2, "2019,2020,2021,2022,2023", VECTOR2, HISTORY2, NEURONS2 };
+
+
+    /*
     {   methodId: "FORECAST5",
         tickerId: "IBM",
         kpiDB: "~/db/kpis",
@@ -181,9 +198,10 @@ java -jar ./diesel/Diesel42.2.jar 2 ./kpis ./nets ./out1 "GDXJ,MSTR" "2016,2017,
     public static void main(String[] args) {
 
         //debugging:
-        args = option2b;
+        args = option8;
         String MDB = "C:/_db/models/optimizer.txt";
 
+        System.out.println("Running option: "+ Arrays.toString(args));
 
         if( args.length < 5 ) {
             System.out.println(MENU);
@@ -251,10 +269,33 @@ java -jar ./diesel/Diesel42.2.jar 2 ./kpis ./nets ./out1 "GDXJ,MSTR" "2016,2017,
                     int multiplier = Integer.parseInt(args[10]);
                     int neurons = Integer.parseInt(args[11]);
                     backtestModels( tickerId, KPI1, OUT1, buyModels, sellModels,buyThreshold, sellThreshold, periods, config, multiplier, neurons );
+        }else if( task.contentEquals("7") ){
+            //"7", KPIS+"\\", NETS2+"\\", OUTS2+"\\", "2024,2025", VECTOR2, HISTORY2, NEURONS2
+            String[] periods = args[4].split(",");
+            String[] config = args[5].split(",");
+            int multiplier = Integer.parseInt(args[6]);
+            int neurons = Integer.parseInt(args[7]);
+            for( String t : dji30c ){
+                backtestTicker2( t, KPI, NET, OUT, periods, config, multiplier, neurons );
+                //break;
+            }
+        }else if( task.contentEquals("8") ){
+            String[] periods = args[4].split(",");
+            String[] config = args[5].split(",");
+            int multiplier = Integer.parseInt(args[6]);
+            int neurons = Integer.parseInt(args[7]);
+            StringBuilder mdb = new StringBuilder();
+            for( String t : dji30c ){
+                optimizeModelsFromFolder2( mdb, t, KPI, NET, OUT, periods, config, multiplier, neurons );
+                //break;
+            }
         }else{
             System.out.println( MENU );
         }
     }
+
+
+
 
 
 /*
@@ -869,6 +910,8 @@ public static void trainingSet(String tkr, String DB, String NET, String OUT, St
         String outFile = OUT + String.format("%s_%s_models_forecast.txt", tickerId, Utilities.getTimeTag() );
         StringBuilder sb1 = new StringBuilder();
 
+        System.out.println("backtest DLJ models. ticker="+tickerId);
+
         BacktestingProcessor bp = new BacktestingProcessor(tickerId, String.format("backtest for %s", tickerId));
         bp.loadDataSet(kpiFile, periods, config, multiplier);
         /*int totalDays = bp.stockData.samples;
@@ -906,4 +949,109 @@ public static void trainingSet(String tkr, String DB, String NET, String OUT, St
 
     }
 
+
+    private static void backtestTicker2(String tickerId, String DB, String MODEL_FOLDER, String OUT, String[] periods, String[] config, int multiplier, int neurons) {
+        String kpiFile = DB + tickerId + "_kpis.txt";
+        String outFile = OUT+String.format("%s_backtesting.txt",tickerId);
+        String resultsFile = OUT+String.format("%s_forecast.txt",tickerId);
+        //tp.loadDataSet(kpiFile, filters, params, multiplier);
+
+        BacktestingProcessor bp = new BacktestingProcessor( tickerId, String.format("simple backtest for %s",tickerId) );
+        bp.loadDataSet(kpiFile, periods, config, multiplier);
+        int totalDays = bp.stockData.samples;
+        int inputSize = bp.stockData.inputVector[0].length;
+        System.out.println("Input size="+inputSize);
+        StringBuilder sb = new StringBuilder();
+
+
+        List<String> modelFiles = Utilities.getFileNames(MODEL_FOLDER);
+        //for(String modelFile : modelFiles) System.out.println(modelFile);
+
+        ModelMixer mx = new ModelMixer(modelFiles.size()*2, bp.totalDays);
+        int numModels = modelFiles.size();
+        for (int i = 0; i < numModels; i++) {
+            mx.loadPredictions2( bp, i, i+numModels, modelFiles.get(i) );
+        }
+
+        mx.recalculateSignals_Majority(numModels);
+        mx.updateSignalPattern();
+        mx.writeForecastDetailMatrix(bp,sb);
+        Document doc=bp.backtesting( mx.signals[0], mx.signals[1] );
+        sb.append( doc.toJson() );
+        System.out.print( doc.toJson() );
+        Utilities.writeFile(outFile,sb);
+
+    }
+
+    private static void optimizeModelsFromFolder2(
+            StringBuilder mdb, String tickerId, String DB, String MODEL_FOLDER,
+            String OUT, String[] periods, String[] config, int multiplier, int neurons) {
+
+        String kpiFile = DB + tickerId + "_kpis.txt";
+       // String outFile1 = OUT + String.format("%s_%s_opt_signals.txt", tickerId, Utilities.getTimeTag() );
+       // String outFile2 = OUT + String.format("%s_%s_out2.txt", tickerId, Utilities.getTimeTag() );
+        String outFile3 = OUT + String.format("%s_%s_optimization.txt", tickerId, Utilities.getTimeTag() );
+        String outFile4 = OUT + String.format("%s_%s_pred_signals.txt", tickerId, Utilities.getTimeTag() );
+        StringBuilder sb1 = new StringBuilder();
+        StringBuilder sb2 = new StringBuilder();
+        StringBuilder sb3 = new StringBuilder();
+        StringBuilder sb4 = new StringBuilder();
+
+        BacktestingProcessor bp = new BacktestingProcessor(tickerId, String.format("backtest for %s", tickerId));
+        bp.loadDataSet(kpiFile, periods, config, multiplier);
+
+        List<String> modelFiles = Utilities.getFileNames(MODEL_FOLDER);
+        //for(String modelFile : modelFiles) System.out.println(modelFile);
+        ModelMixer mx = new ModelMixer(modelFiles.size()*2, bp.totalDays);
+        int numModels = modelFiles.size();
+        for (int i = 0; i < numModels; i++) {
+            System.out.println("Loading model: "+modelFiles.get(i));
+            mx.loadPredictions2( bp, i, i+numModels, modelFiles.get(i) );
+        }
+
+        mx.startOptimization(bp);
+        //mx.writeForecastDetailMatrix(bp,sb1);
+        //Utilities.writeFile(outFile1, sb1);
+        //mx.runOptimizer1(bp);
+        mx.runOptimizer2(bp,sb3);
+        //System.out.print(sb);
+
+        /*sb2.append("\n\nFINAL CONFIG:\n");
+        mx.writeModelConfig(bp,sb2);
+        mx.writeFinalPredictions(bp,sb2);
+*/
+        //sb3.append("\n\nCURRENT SIGNAL MATRIX:\n");
+        //mx.writeSignalsMatrix(sb3);
+        //mx.writeForecastDetailMatrix(bp,sb3);
+        //sb3.append("\n\nOPTIMIZED RESULTS:\n");
+        Document optimalModel = mx.forecast(bp, mx.includeVector, mx.buyThreshold, mx.sellThreshold);
+        sb3.append( optimalModel.toJson() );
+        System.out.println(optimalModel.toJson());
+
+        BacktestingProcessor bp2 = new BacktestingProcessor(tickerId, String.format("final backtest for %s", tickerId));
+        bp2.loadDataSet(kpiFile, new String[]{"2024","2025"}, config, multiplier);
+
+        ModelMixer mx2 = new ModelMixer(modelFiles.size()*2, bp2.totalDays);
+        for (int i = 0; i < numModels; i++) {
+            mx2.loadPredictions2( bp2, i, i+numModels, modelFiles.get(i) );
+        }
+
+        Document finalResult = mx2.forecast(bp2, mx.includeVector, mx.buyThreshold, mx.sellThreshold);
+        mx2.writeForecastDetailMatrix(bp2,sb4);
+        Utilities.writeFile(outFile4, sb4);
+
+        System.out.println( finalResult.toJson() );
+        /*sb3.append("\n\nFINAL FORECAST:\n");
+        sb3.append( finalResult.toJson() );
+        sb3.append("\nTIME SERIES DATA:\n");
+        //mx2.writeFinalPredictions(bp,sb);
+        mx2.writeForecastDetailMatrix(bp2,sb3);*/
+        StringBuilder modelConfig = new StringBuilder();
+        mx2.writeModelConfig(bp2,modelConfig,tickerId,neurons);
+        System.out.println("\nMODEL CONFIG:\n"+modelConfig.toString());
+        sb3.append( modelConfig.toString() );
+        Utilities.writeFile(outFile3, sb3);
+        mdb.append( modelConfig ).append("\n");
+
+    }
 }
